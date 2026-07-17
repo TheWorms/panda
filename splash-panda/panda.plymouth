@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Panda
+Description=La ménagerie — un panda mange du bambou pendant le démarrage
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/panda/images
+ScriptFile=/usr/share/plymouth/themes/panda/panda.script

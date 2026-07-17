@@ -1,159 +1,193 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Panda 1.0.2 — installation autonome sur Raspberry Pi (Debian 13 « Trixie »)
+#  Panda — installation kiosk sur Raspberry Pi (Debian 13 « trixie » / RPi OS)
+#  Écran tactile HDMI 1024×600.
 #
-#  Usage (en root) :
-#    sudo bash install.sh                        # service Panda seul
-#    sudo bash install.sh --with-kiosk           # + session écran labwc/Chromium
-#    sudo bash install.sh --data panda-data.tar.gz   # + restauration des données
-#    sudo bash install.sh --ca home-ca.crt      # + CA maison dans le système
+#  Modèle : le service `panda` sert l'app Flask (gunicorn) ; le service
+#  `panda-kiosk` lance **labwc** (compositeur Wayland) sur tty1, qui démarre
+#  Chromium en mode --app plein écran + Squeekboard (clavier tactile).
 #
-#  Idempotent : relançable sans risque. Ne touche jamais data/, addons/ ni
-#  secret.key existants (les données survivent aux réinstallations).
+#  À exécuter SUR le Pi, avec VOTRE utilisateur (pas root ; sudo au besoin) :
+#      bash install.sh
+#
+#  Options :
+#      NO_KIOSK=1   -> service Flask seul (pas d'affichage)
+#      NO_SPLASH=1  -> n'installe pas le thème Plymouth
+#      NO_CLIP=1    -> n'installe pas wl-clip-persist (évite la toolchain Rust)
 # =============================================================================
 set -euo pipefail
 
-KIOSK_USER="${KIOSK_USER:-panda}"
-DIR=/opt/panda
+APP=panda
+DIR=/opt/$APP
 PORT=8090
-WITH_KIOSK=0
-DATA_ARCHIVE=""
-CA_FILE=""
-HERE="$(cd "$(dirname "$0")" && pwd)"
+USER_NAME="$(id -un)"
+UID_NUM="$(id -u)"
+SRC="$(cd "$(dirname "$0")/.." && pwd)"     # racine du dépôt (install/ est dedans)
+NO_KIOSK="${NO_KIOSK:-0}"
+NO_SPLASH="${NO_SPLASH:-0}"
+NO_CLIP="${NO_CLIP:-0}"
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --with-kiosk) WITH_KIOSK=1; shift;;
-    --data) DATA_ARCHIVE="$2"; shift 2;;
-    --ca) CA_FILE="$2"; shift 2;;
-    *) echo "option inconnue : $1"; exit 1;;
-  esac
-done
+[[ "$USER_NAME" != "root" ]] || { echo "Lance-moi avec ton utilisateur normal, pas root."; exit 1; }
+echo "==> Panda — installation (utilisateur : $USER_NAME, UID $UID_NUM)"
 
-[[ $EUID -eq 0 ]] || { echo "Lance-moi en root : sudo bash install.sh"; exit 1; }
-id "$KIOSK_USER" &>/dev/null || { echo "L'utilisateur $KIOSK_USER n'existe pas."; exit 1; }
-echo "== Panda 1.0.2 → $DIR (user: $KIOSK_USER, port: $PORT) =="
-
-# --- 1. Dépendances système --------------------------------------------------
-echo "== [1/7] Paquets APT =="
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-  python3 python3-venv python3-pip \
-  network-manager bluez rfkill alsa-utils \
-  wireplumber wlr-randr ddcutil libglib2.0-bin dbus \
-  unzip curl ca-certificates
-if [[ $WITH_KIOSK -eq 1 ]]; then
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    chromium labwc squeekboard fonts-noto-color-emoji seatd
+# --- 1. Dépendances système -------------------------------------------------
+echo "==> Paquets système"
+sudo apt-get update -qq
+sudo apt-get install -y -qq python3-venv python3-pip curl locales \
+  network-manager bluez rfkill \
+  pipewire wireplumber pipewire-pulse alsa-utils \
+  wlr-randr ca-certificates
+if [[ "$NO_KIOSK" != 1 ]]; then
+  sudo apt-get install -y -qq labwc seatd squeekboard chromium \
+    fonts-noto-color-emoji
+  [[ "$NO_SPLASH" != 1 ]] && sudo apt-get install -y -qq plymouth plymouth-themes
 fi
 
-# --- 2. Fichiers de l'application (préserve data/, addons/, secret.key) -----
-echo "== [2/7] Fichiers vers $DIR =="
-mkdir -p "$DIR"
-cp "$HERE"/payload/app.py "$HERE"/payload/registry.py "$HERE"/payload/addon_backends.py \
-   "$HERE"/payload/requirements.txt "$DIR"/
-rm -rf "$DIR"/static.new "$DIR"/registry.new
-cp -r "$HERE"/payload/static "$DIR"/static.new && rm -rf "$DIR"/static && mv "$DIR"/static.new "$DIR"/static
-cp -r "$HERE"/payload/registry "$DIR"/registry.new && rm -rf "$DIR"/registry && mv "$DIR"/registry.new "$DIR"/registry
-mkdir -p "$DIR"/data "$DIR"/addons
-
-# --- 3. Restauration éventuelle des données ---------------------------------
-if [[ -n "$DATA_ARCHIVE" ]]; then
-  echo "== [3/7] Restauration de $DATA_ARCHIVE =="
-  tar xzf "$DATA_ARCHIVE" -C "$DIR"    # contient data/, addons/, secret.key
-else
-  echo "== [3/7] Pas de restauration (installation vierge) =="
-fi
-chown -R "$KIOSK_USER":"$KIOSK_USER" "$DIR"
-[[ -f "$DIR"/secret.key ]] && chmod 600 "$DIR"/secret.key || true
-
-# --- 4. CA maison éventuelle -------------------------------------------------
-if [[ -z "$CA_FILE" && -f "$HERE"/home-ca.crt ]]; then CA_FILE="$HERE"/home-ca.crt; fi
-if [[ -n "$CA_FILE" ]]; then
-  echo "== [4/7] CA → magasin système =="
-  install -m 644 "$CA_FILE" /usr/local/share/ca-certificates/home-ca.crt
-  update-ca-certificates >/dev/null
-else
-  echo "== [4/7] Pas de CA fournie (le Store Abeille en HTTPS maison en aura besoin) =="
+# Locale FR (interface + géoloc)
+if ! locale -a 2>/dev/null | grep -qi "fr_FR.utf8"; then
+  sudo sed -i 's/^# *fr_FR.UTF-8/fr_FR.UTF-8/' /etc/locale.gen
+  sudo locale-gen
 fi
 
-# --- 5. Environnement Python -------------------------------------------------
-echo "== [5/7] venv + dépendances Python =="
-[[ -d "$DIR"/venv ]] || sudo -u "$KIOSK_USER" python3 -m venv "$DIR"/venv
-sudo -u "$KIOSK_USER" "$DIR"/venv/bin/pip install -q --upgrade pip
-sudo -u "$KIOSK_USER" "$DIR"/venv/bin/pip install -q -r "$DIR"/requirements.txt
+# --- 2. Fichiers application (préserve data/, addons/, secret.key) ----------
+echo "==> Application → $DIR"
+sudo mkdir -p "$DIR"
+sudo cp "$SRC"/app.py "$SRC"/registry.py "$SRC"/addon_backends.py "$SRC"/requirements.txt "$DIR"/
+sudo rm -rf "$DIR"/static.new "$DIR"/registry.new
+sudo cp -r "$SRC"/static "$DIR"/static.new && sudo rm -rf "$DIR"/static && sudo mv "$DIR"/static.new "$DIR"/static
+sudo cp -r "$SRC"/registry "$DIR"/registry.new && sudo rm -rf "$DIR"/registry && sudo mv "$DIR"/registry.new "$DIR"/registry
+sudo mkdir -p "$DIR"/data "$DIR"/addons
+sudo chown -R "$USER_NAME":"$USER_NAME" "$DIR"
 
-# --- 6. Sudoers + service systemd -------------------------------------------
-echo "== [6/7] sudoers + panda.service =="
-cat > /etc/sudoers.d/panda-kiosk <<EOF
-# Commandes système pilotées par le kiosk Panda (heure, wifi, bluetooth, MAJ)
-$KIOSK_USER ALL=(root) NOPASSWD: /usr/bin/timedatectl, /usr/bin/nmcli, /usr/sbin/rfkill, /usr/bin/rfkill, /usr/bin/bluetoothctl, /usr/bin/apt
+# --- 3. Environnement Python -----------------------------------------------
+echo "==> venv + dépendances Python"
+[[ -d "$DIR"/venv ]] || python3 -m venv "$DIR"/venv
+"$DIR"/venv/bin/pip install -q --upgrade pip
+"$DIR"/venv/bin/pip install -q -r "$DIR"/requirements.txt
+
+# --- 4. Sudoers (commandes système pilotées par le kiosk) ------------------
+echo "==> sudoers"
+sudo tee /etc/sudoers.d/panda-system >/dev/null <<EOF
+$USER_NAME ALL=(root) NOPASSWD: /usr/bin/nmcli, /usr/bin/bluetoothctl, /usr/sbin/rfkill, /usr/bin/timedatectl
 EOF
-chmod 440 /etc/sudoers.d/panda-kiosk
-visudo -cf /etc/sudoers.d/panda-kiosk >/dev/null
+sudo chmod 440 /etc/sudoers.d/panda-system
+sudo visudo -cf /etc/sudoers.d/panda-system >/dev/null
 
-cat > /etc/systemd/system/panda.service <<EOF
+# --- 5. Service Flask -------------------------------------------------------
+echo "==> service panda (Flask/gunicorn)"
+sudo tee /etc/systemd/system/panda.service >/dev/null <<EOF
 [Unit]
-Description=Panda — kiosk domestique (Flask/gunicorn)
+Description=Panda (Flask)
 After=network-online.target
 Wants=network-online.target
-
 [Service]
-User=$KIOSK_USER
+User=$USER_NAME
 WorkingDirectory=$DIR
+Environment=XDG_RUNTIME_DIR=/run/user/$UID_NUM
 Environment=REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-ExecStart=$DIR/venv/bin/gunicorn -k gthread --threads 8 -w 3 -b 0.0.0.0:$PORT app:app
-Restart=always
+ExecStart=$DIR/venv/bin/gunicorn -k gthread -w 2 --threads 12 -t 90 -b 0.0.0.0:$PORT app:app
+Restart=on-failure
 RestartSec=3
-
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload
-systemctl enable --now panda
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now panda
 sleep 3
 
-# --- 7. Session kiosk (écran) ------------------------------------------------
-if [[ $WITH_KIOSK -eq 1 ]]; then
-  echo "== [7/7] Session kiosk labwc + Chromium =="
-  HOME_DIR=$(getent passwd "$KIOSK_USER" | cut -d: -f6)
-  # autologin console sur tty1
-  mkdir -p /etc/systemd/system/getty@tty1.service.d
-  cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin $KIOSK_USER --noclear %I \$TERM
-EOF
-  # lancement de labwc à l'ouverture de session tty1
-  PROFILE="$HOME_DIR/.bash_profile"
-  MARK="# panda-kiosk-autostart"
-  grep -q "$MARK" "$PROFILE" 2>/dev/null || cat >> "$PROFILE" <<'EOF'
-# panda-kiosk-autostart
-if [[ -z "$WAYLAND_DISPLAY" && "$(tty)" == "/dev/tty1" ]]; then
-  exec labwc
-fi
-EOF
-  # autostart labwc : clavier virtuel + Chromium plein écran sur Panda
-  mkdir -p "$HOME_DIR/.config/labwc"
-  cat > "$HOME_DIR/.config/labwc/autostart" <<EOF
-squeekboard &
-chromium --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 \
-  --ozone-platform=wayland http://127.0.0.1:$PORT &
-EOF
-  chown -R "$KIOSK_USER":"$KIOSK_USER" "$HOME_DIR/.config/labwc" 
-  chown "$KIOSK_USER":"$KIOSK_USER" "$PROFILE"
-  systemctl daemon-reload
-  echo "   Session kiosk installée (autologin tty1 → labwc → Chromium)."
-else
-  echo "== [7/7] Session kiosk non demandée (--with-kiosk pour l'ajouter) =="
+if [[ "$NO_KIOSK" == 1 ]]; then
+  echo "==> NO_KIOSK : service Flask seul."
+  curl -fsS "http://127.0.0.1:$PORT/healthz" && echo " ✅ Panda répond sur :$PORT"
+  exit 0
 fi
 
-# --- Contrôle final ----------------------------------------------------------
-echo "== Contrôle =="
-if curl -sf "http://127.0.0.1:$PORT/healthz"; then
-  echo; echo "✅ Panda répond. Interface : http://$(hostname -I | awk '{print $1}'):$PORT"
-  [[ $WITH_KIOSK -eq 1 ]] && echo "   Redémarre le Pi pour ouvrir la session écran : sudo reboot"
-else
-  echo "❌ /healthz ne répond pas — journalctl -u panda -n 50"
-  exit 1
+# --- 6. Lanceur Chromium ----------------------------------------------------
+echo "==> lanceur /usr/local/bin/panda-kiosk"
+sudo tee /usr/local/bin/panda-kiosk >/dev/null <<'EOF'
+#!/usr/bin/env bash
+# Attend Flask, puis lance Chromium en mode --app maximisé (PAS --kiosk :
+# nécessaire pour que Squeekboard s'affiche au-dessus et que la page se
+# redimensionne quand le clavier apparaît).
+set -u
+BASE="http://127.0.0.1:8090"; URL="$BASE/?kiosk=1"
+for i in $(seq 1 60); do curl -fsS -o /dev/null "$BASE/healthz" && break; sleep 1; done
+P="$HOME/.config/panda-chromium"; mkdir -p "$P/Default"
+sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' "$P/Default/Preferences" 2>/dev/null || true
+rm -rf "$P/Default/Cache" "$P/Default/Code Cache" "$P/GrShaderCache" "$HOME/.cache/chromium" 2>/dev/null || true
+exec /usr/bin/chromium \
+  --app="$URL" --start-maximized --ozone-platform=wayland --enable-wayland-ime \
+  --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
+  --disable-features=TranslateUI,Translate --no-first-run --fast --fast-start \
+  --disable-translate --lang=fr-FR --check-for-update-interval=31536000 \
+  --disk-cache-size=1 --aggressive-cache-discard --user-data-dir="$P" \
+  --touch-events=enabled --enable-features=OverlayScrollbar \
+  --overscroll-history-navigation=0
+EOF
+sudo chmod +x /usr/local/bin/panda-kiosk
+
+# --- 7. Configuration labwc -------------------------------------------------
+echo "==> config labwc (~/.config/labwc)"
+mkdir -p "$HOME/.config/labwc"
+cat > "$HOME/.config/labwc/environment" <<EOF
+XDG_RUNTIME_DIR=/run/user/$UID_NUM
+WLR_DRM_NO_ATOMIC=1
+XCURSOR_SIZE=1
+EOF
+cat > "$HOME/.config/labwc/rc.xml" <<'EOF'
+<?xml version="1.0"?>
+<labwc_config>
+  <core><gap>0</gap><adaptiveSync>no</adaptiveSync></core>
+  <theme><dropShadows>no</dropShadows><titlebar><layout></layout></titlebar></theme>
+  <windowRules>
+    <windowRule identifier="*" serverDecoration="no" skipTaskbar="yes">
+      <action name="Maximize"/>
+    </windowRule>
+  </windowRules>
+  <touch mapToOutput="HDMI-A-1"/>
+</labwc_config>
+EOF
+# autostart : clavier + kiosk (+ presse-papier persistant si dispo)
+{
+  if [[ "$NO_CLIP" != 1 && -x "$HOME/.cargo/bin/wl-clip-persist" ]]; then
+    echo "$HOME/.cargo/bin/wl-clip-persist --clipboard regular &"
+  fi
+  echo "squeekboard &"
+  echo "/usr/local/bin/panda-kiosk &"
+} > "$HOME/.config/labwc/autostart"
+
+# --- 8. Splash Plymouth (optionnel) ----------------------------------------
+if [[ "$NO_SPLASH" != 1 && -d "$SRC/splash-panda" ]]; then
+  echo "==> thème Plymouth « panda »"
+  sudo cp -r "$SRC/splash-panda" /usr/share/plymouth/themes/panda
+  sudo plymouth-set-default-theme -R panda 2>/dev/null || sudo plymouth-set-default-theme panda || true
 fi
+
+# --- 9. Service kiosk (labwc sur tty1) -------------------------------------
+echo "==> service panda-kiosk (labwc)"
+sudo tee /etc/systemd/system/panda-kiosk.service >/dev/null <<EOF
+[Unit]
+Description=Panda kiosk (labwc + Chromium + clavier virtuel)
+After=panda.service systemd-user-sessions.service
+Wants=panda.service
+Conflicts=getty@tty1.service
+[Service]
+User=$USER_NAME
+TTYPath=/dev/tty1
+PAMName=login
+Environment=LANG=fr_FR.UTF-8
+Environment=LANGUAGE=fr_FR
+Environment=LC_ALL=fr_FR.UTF-8
+Environment=XDG_RUNTIME_DIR=/run/user/$UID_NUM
+ExecStart=/usr/bin/labwc
+Restart=always
+RestartSec=3
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable panda-kiosk
+echo ""
+echo "✅ Installation terminée. Redémarre pour lancer le kiosk : sudo reboot"
+curl -fsS "http://127.0.0.1:$PORT/healthz" && echo " — Panda répond déjà sur :$PORT"
