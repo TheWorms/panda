@@ -1,0 +1,17 @@
+{
+  "manifest_version": 1,
+  "id": "corbeille",
+  "name": "Corbeille",
+  "version": "0.1.0",
+  "kiosk_api": "^1.2",
+  "author": "The Worm's",
+  "type": "code",
+  "headless": true,
+  "tiles": [],
+  "backend": {
+    "entry": "backend.py"
+  },
+  "permissions": {
+    "network": []
+  }
+}

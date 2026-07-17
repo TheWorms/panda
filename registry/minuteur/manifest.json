@@ -1,0 +1,20 @@
+{
+  "manifest_version": 1,
+  "id": "minuteur",
+  "name": "Minuteur",
+  "version": "0.16.0",
+  "kiosk_api": "^1.2",
+  "author": "The Worm's",
+  "type": "internal",
+  "category": "Outils",
+  "tiles": [
+    {
+      "name": "Minuteur",
+      "icon": "⏱️",
+      "source": "local",
+      "color": "#f0b429",
+      "category": "cuisine",
+      "fleet": false
+    }
+  ]
+}
