@@ -1,0 +1,4 @@
+Flask>=3.0
+gunicorn>=21.2
+psutil>=5.9
+requests>=2.31

@@ -1,0 +1,62 @@
+{
+  "manifest_version": 1,
+  "id": "navigateur",
+  "name": "Navigateur",
+  "version": "0.17.0",
+  "kiosk_api": "^1.2",
+  "author": "The Worm's",
+  "type": "internal",
+  "category": "Outils",
+  "tiles": [
+    {
+      "name": "Navigateur",
+      "icon": "🌐",
+      "source": "chromium",
+      "color": "#7aa2f7",
+      "category": "utils",
+      "fleet": false,
+      "render": "browser"
+    }
+  ],
+  "config": {
+    "fields": [
+      {
+        "key": "url",
+        "label": "Page d'accueil",
+        "placeholder": "http://192.168.1.10:3000"
+      },
+      {
+        "key": "engine",
+        "label": "Moteur de recherche",
+        "type": "select",
+        "options": [
+          [
+            "google",
+            "Google"
+          ],
+          [
+            "ddg",
+            "DuckDuckGo"
+          ],
+          [
+            "qwant",
+            "Qwant"
+          ],
+          [
+            "bing",
+            "Bing"
+          ],
+          [
+            "brave",
+            "Brave"
+          ]
+        ]
+      },
+      {
+        "key": "openHome",
+        "label": "Ouvrir directement la page d'accueil",
+        "type": "toggle"
+      }
+    ]
+  }
+}
