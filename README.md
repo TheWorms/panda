@@ -86,6 +86,23 @@ https://raw.githubusercontent.com/TheWorms/abeille/main/
 Touchez **Tester**, puis ouvrez le **Store** depuis l'accueil pour installer
 des applications.
 
+**Configurer un addon.** Chaque tuile installée porte une icône **⚙** :
+touchez-la pour ouvrir son panneau de configuration (URL du service, jeton
+d'accès, options…), renseignez les champs puis **Enregistrer** (et **Tester**
+si le bouton est présent). La configuration est relue à chaud, sans
+redémarrage. Pour les addons liés (ex. cuisine/KitchenOwl), un seul réglage
+suffit : les addons associés héritent de la même connexion.
+
+*Astuce — jetons longs.* Pour coller un token API sans le saisir sur l'écran
+tactile, depuis un autre poste :
+
+```bash
+ssh -t <votre-user>@<ip-du-pi> 'python3 ~/panda-cfg.py'
+```
+
+Menu interactif qui découvre les addons configurables ; les champs sensibles
+(token, clé, mot de passe) sont saisis en invisible.
+
 ### 6. Sauvegarde et restauration
 
 ```bash
