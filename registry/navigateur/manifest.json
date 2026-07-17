@@ -23,7 +23,7 @@
       {
         "key": "url",
         "label": "Page d'accueil",
-        "placeholder": "http://192.168.1.10:3000"
+        "placeholder": "http://forgejo.example.com:3000"
       },
       {
         "key": "engine",

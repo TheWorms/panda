@@ -1,0 +1,130 @@
+# ============================================================
+#  Plymouth theme "panda" — la ménagerie
+#  Storyboard :
+#    1→3  intro (arrivée, s'assoit, prend une branche) — jouée une fois
+#    4→6  boucle repas (mange, mange encore, fatigué)  — 2 cycles
+#    7    sommeil (si le chargement est long) — Z animés en boucle
+#    8    réveil — affiché juste avant l'écran de connexion (quit)
+#  Cadence refresh Plymouth : 50 ticks/seconde
+# ============================================================
+
+Window.SetBackgroundTopColor(0.0, 0.0, 0.0);
+Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
+
+screen.w = Window.GetWidth();
+screen.h = Window.GetHeight();
+
+# ---------- Chargement des frames ----------
+frames[0]  = Image("01_arrivee.png");
+frames[1]  = Image("02_s_assoit.png");
+frames[2]  = Image("03_prend_branche.png");
+frames[3]  = Image("04_mange_01.png");
+frames[4]  = Image("05_mange_02.png");
+frames[5]  = Image("06_fatigue.png");
+frames[6]  = Image("07_dort_01.png");
+frames[7]  = Image("07_dort_02.png");
+frames[8]  = Image("07_dort_03.png");
+frames[9]  = Image("07_dort_04.png");
+frames[10] = Image("08_reveille.png");
+
+# Mise à l'échelle : 55 % de la largeur écran (≈ 563 px sur le 1024×600 de Panda)
+panda.scale  = (screen.w * 0.55) / frames[0].GetWidth();
+panda.w      = Math.Int(frames[0].GetWidth()  * panda.scale);
+panda.h      = Math.Int(frames[0].GetHeight() * panda.scale);
+
+for (i = 0; i <= 10; i++)
+    frames[i] = frames[i].Scale(panda.w, panda.h);
+
+panda.x = Math.Int((screen.w - panda.w) / 2);
+panda.y = Math.Int((screen.h - panda.h) / 2) - Math.Int(screen.h * 0.06);
+
+panda.sprite = Sprite(frames[0]);
+panda.sprite.SetPosition(panda.x, panda.y, 10);
+panda.current = 0;
+
+# ---------- Barre de progression ----------
+bar.w = Math.Int(screen.w * 0.30);
+bar.h = 6;
+bar.x = Math.Int((screen.w - bar.w) / 2);
+bar.y = panda.y + panda.h + Math.Int(screen.h * 0.05);
+
+bar.bg_image = Image("progress_bg.png").Scale(bar.w, bar.h);
+bar.bg = Sprite(bar.bg_image);
+bar.bg.SetPosition(bar.x, bar.y, 5);
+
+bar.fg_orig = Image("progress_fg.png");
+bar.fg = Sprite();
+bar.fg.SetPosition(bar.x, bar.y, 6);
+
+fun progress_callback(duration, progress) {
+    width = Math.Int(bar.w * progress);
+    if (width < 2)
+        width = 2;
+    bar.fg.SetImage(bar.fg_orig.Scale(width, bar.h));
+}
+Plymouth.SetBootProgressFunction(progress_callback);
+
+# ---------- Machine à états (timeline en ticks, 50 = 1 s) ----------
+# Intro : 3 × 1.5 s = 225 ticks
+# Boucle repas : 2.5 s + 2.5 s + 1.5 s = 325 ticks, jouée 2 fois
+# Sommeil à partir de 225 + 650 = 875 ticks (17.5 s), Z en boucle (1 s/frame)
+INTRO_END   = 225;
+LOOP_LEN    = 325;
+SLEEP_START = 875;
+
+state.counter = 0;
+
+fun set_frame(idx) {
+    if (idx != panda.current) {
+        panda.sprite.SetImage(frames[idx]);
+        panda.current = idx;
+    }
+}
+
+fun refresh_callback() {
+    state.counter++;
+    t = state.counter;
+
+    if (t < 75)
+        set_frame(0);                      # arrivée
+    else if (t < 150)
+        set_frame(1);                      # s'assoit
+    else if (t < INTRO_END)
+        set_frame(2);                      # prend une branche
+    else if (t < SLEEP_START) {
+        p = Math.Int((t - INTRO_END) % LOOP_LEN);
+        if (p < 125)
+            set_frame(3);                  # mange
+        else if (p < 250)
+            set_frame(4);                  # mange encore
+        else
+            set_frame(5);                  # fatigué
+    } else {
+        p = Math.Int(((t - SLEEP_START) / 50) % 4);
+        set_frame(6 + p);                  # dort, Z animés
+    }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# ---------- Réveil juste avant l'écran de connexion ----------
+fun quit_callback() {
+    panda.sprite.SetImage(frames[10]);     # se réveille et salue
+    bar.fg.SetImage(bar.fg_orig.Scale(bar.w, bar.h));
+}
+Plymouth.SetQuitFunction(quit_callback);
+
+# ---------- Messages système (fsck, etc.) ----------
+message.sprite = Sprite();
+fun message_callback(text) {
+    img = Image.Text(text, 0.55, 0.60, 0.50);
+    message.sprite.SetImage(img);
+    message.sprite.SetPosition(
+        Math.Int((screen.w - img.GetWidth()) / 2),
+        bar.y + 24,
+        7);
+}
+fun hide_message_callback(text) {
+    message.sprite.SetImage(Image.Text("", 0, 0, 0));
+}
+Plymouth.SetMessageFunction(message_callback);
+Plymouth.SetHideMessageFunction(hide_message_callback);

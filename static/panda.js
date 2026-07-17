@@ -309,7 +309,7 @@ function openService(url,name){
 async function loadGrafanaView(a){
   const el=document.getElementById('grafBody');if(!el)return;
   let cfg={};try{const r=await fetch('/api/modules/grafana');if(r.ok)cfg=await r.json();}catch(e){}
-  const url=((cfg.url||'').trim())||'http://192.168.1.10:3000';
+  const url=((cfg.url||'').trim())||'http://forgejo.example.com:3000';
   const panels=(cfg.panels||'').trim();
   let h='<div class="grafhead"><button class="lgbtn" id="grafOpen" style="margin:0;padding:9px 18px;font-size:14px">Ouvrir Grafana \u2197</button><button class="wch" id="grafRefresh">\u21bb Rafraîchir</button></div>';
   if(!((cfg.apikey||cfg.has_apikey)&&cfg.dashboard&&panels)){
@@ -325,7 +325,7 @@ async function loadGrafanaView(a){
 async function loadProxmoxView(a){
   const el=document.getElementById('pveBody');if(!el)return;
   let cfg={};try{const r=await fetch('/api/modules/proxmox');if(r.ok)cfg=await r.json();}catch(e){}
-  const url=((cfg.url||'').trim())||'https://192.168.1.10:8006';
+  const url=((cfg.url||'').trim())||'https://proxmox.example.com:8006';
   let d=null;try{const r=await fetch('/addons/proxmox/api/proxmox');d=await r.json();}catch(e){d={ok:false,reason:'serveur injoignable'};}
   let h='<div class="grafhead"><button class="lgbtn" id="pveOpen" style="margin:0;padding:9px 18px;font-size:14px">Ouvrir Proxmox \u2197</button><button class="wch" id="pveRefresh">\u21bb Rafraîchir</button></div>';
   if(!d||!d.ok){
