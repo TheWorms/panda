@@ -12,7 +12,8 @@
 #   3. construit <id>-<version>.zip (contenu préfixé par <id>/,
 #      sans __pycache__ ni *.pyc)
 #   4. calcule le SHA-256 et met à jour index.json (réécrit en entier)
-#   5. commit + push dans le repo abeille
+#   5. SIGNE l'index (Ed25519, sign-index.py — passphrase demandée)
+#   6. commit + push dans le repo abeille
 #
 # Une version publiée est immuable : republier la même version exige FORCE=1
 # (le bon réflexe est de bumper la version, ex. --set-version).
@@ -178,8 +179,11 @@ PY
 
 VERSION=$(python3 -c "import json,sys; print(json.load(open('$ADDON_DIR/manifest.json'))['version'])")
 
+echo "── Signature de l'index ──"
+python3 "$PANDA_REPO/tools/sign-index.py" "$STORE_REPO/index.json"
+
 echo "── Commit + push ──"
-git -C "$STORE_REPO" add "index.json" "zips/$ID"
+git -C "$STORE_REPO" add "index.json" "index.json.sig" "zips/$ID"
 if git -C "$STORE_REPO" diff --cached --quiet; then
   echo "rien à publier (aucun changement)"
 else
