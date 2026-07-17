@@ -9,7 +9,8 @@
 #   2. copie le paquet correspondant vers le store PUBLIC
 #   3. vérifie le sha256 du paquet copié
 #   4. remplace l'entrée <id> dans l'index public (réécrit en entier)
-#   5. commit + push → le miroir GitHub se synchronise tout seul
+#   5. SIGNE l'index public (Ed25519 — passphrase demandée)
+#   6. commit + push → le miroir GitHub se synchronise tout seul
 #
 # La promotion est idempotente : re-promouvoir la même version ne change rien.
 set -euo pipefail
@@ -59,10 +60,13 @@ PY
 echo "$RES"
 [[ "$RES" == déjà* ]] && exit 0
 
-# 5 — commit + push (le miroir GitHub suit automatiquement)
+# 5 — signature de l'index public (la même clé signe privé et public)
+python3 "$(cd "$(dirname "$0")" && pwd)/sign-index.py" "$PUB/index.json"
+
+# 6 — commit + push (le miroir GitHub suit automatiquement)
 cd "$PUB"
 VER=$(python3 -c "import json;print(next(a['version'] for a in json.load(open('index.json'))['addons'] if a['id']=='$ID'))")
-git add index.json "zips/$ID/" 2>/dev/null || git add -A
+git add index.json index.json.sig "zips/$ID/" 2>/dev/null || git add -A
 git commit -m "promote: $ID $VER" >/dev/null
 git push origin main
 echo "✅ $ID $VER en ligne — le miroir GitHub se synchronise."
