@@ -5,3 +5,4 @@ data/
 addons/
 secret.key
 *.tar.gz
+config.json
