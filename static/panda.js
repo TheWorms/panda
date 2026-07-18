@@ -24,7 +24,7 @@ async function loadRegistry(){
   return false;
 }
 
-let state={installed:[],hidden:[],order:[],railOn:false,lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',font:'system'};
+let state={installed:[],hidden:[],order:[],railOn:false,lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',veilleMode:'off',font:'system'};
 function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
 /* Icônes Tabler : mapping emoji → nom d'icône, + helper de rendu.
    Fallback : un emoji non mappé est affiché tel quel. ic() renvoie du HTML
@@ -48,7 +48,7 @@ function sanitize(){
 let pushT;
 function save(){
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,font:state.font})}).catch(()=>{});},250);
+  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,veilleMode:state.veilleMode,font:state.font})}).catch(()=>{});},250);
 }
 async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){Object.assign(state,await r.json());sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
@@ -2211,6 +2211,7 @@ function secApparence(){
     '<div class="setrow"><div class="lft"><div class="t">Recharger l\'interface</div><div class="d">Recharge l\'affichage — utile pour appliquer pleinement un changement de police ou d\'icônes, ou rafraîchir le kiosk sans le redémarrer.</div></div><button class="btnpill" id="btnReloadUI" type="button">Rafraîchir</button></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Écran</div>'+
     '<div class="setrow"><div class="lft"><div class="t">Mise en veille écran</div><div class="d">Éteint l\'écran après une période d\'inactivité (un toucher rallume, sans rien déclencher)</div></div><select class="inp" id="veille">'+'<option value="0"'+(state.veille===0?' selected':'')+'>Jamais</option>'+'<option value="5"'+(state.veille===5?' selected':'')+'>5 min</option>'+'<option value="15"'+(state.veille===15?' selected':'')+'>15 min</option>'+'<option value="30"'+(state.veille===30?' selected':'')+'>30 min</option>'+'<option value="60"'+(state.veille===60?' selected':'')+'>1 h</option>'+'<option value="120"'+(state.veille===120?' selected':'')+'>2 h</option>'+'</select></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Pendant la veille</div><div class="d">Écran éteint (économie maximale), ou horloge affichée — avec la météo du bandeau si disponible. Un toucher réveille.</div></div><select class="inp" id="veilleMode">'+'<option value="off"'+((state.veilleMode||'off')==='off'?' selected':'')+'>Écran éteint</option>'+'<option value="clock"'+(state.veilleMode==='clock'?' selected':'')+'>Horloge</option>'+'<option value="meteo"'+(state.veilleMode==='meteo'?' selected':'')+'>Horloge + météo</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Taille du texte</div><div class="d">Agrandir ou réduire l\'affichage</div></div><div class="seg" id="segFont"><button data-fs="92">A−</button><button data-fs="100">A</button><button data-fs="108">A+</button><button data-fs="116">A++</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Rotation</div><div class="d">Orientation de l\'affichage</div></div><select class="inp" id="rotSel" style="max-width:150px"><option value="normal">Normale</option><option value="left">90° gauche</option><option value="right">90° droite</option><option value="inverted">180°</option></select></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Accueil</div>'+
@@ -2268,6 +2269,8 @@ function secApparence(){
   if(rot)rot.addEventListener('change',async()=>{
     const j=await post('/api/system/rotation',{value:rot.value});
     toast(j.ok?'Rotation appliquée':('Impossible — '+(j.reason||'')));});
+  const vmod=document.getElementById('veilleMode');
+  if(vmod)vmod.addEventListener('change',()=>{state.veilleMode=vmod.value;save();});
   const vsel=document.getElementById('veille');
   if(vsel)vsel.addEventListener('change',async()=>{
     const mins=parseInt(vsel.value)||0;
@@ -2590,16 +2593,33 @@ function screenOff(){
   if(screenIsOff)return;screenIsOff=true;
   // Voile noir : l'écran s'éteint mais le tactile reste actif — le voile
   // capte le premier toucher (rallumage) sans cliquer l'interface dessous.
+  const mode=(state.veilleMode||'off');
   const v=document.createElement('div');v.id='veil';
   v.style.cssText='position:fixed;inset:0;background:#000;z-index:99999';
   v.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();screenOn();},{once:true,capture:true});
+  if(mode!=='off'){
+    // veille « habitée » : horloge (+ météo du bandeau), dalle laissée allumée
+    v.innerHTML='<div id="veilBox" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#cfd4dc;font-family:var(--sans);transition:transform 1.2s">'+
+      '<div id="veilClk" style="font-size:15vw;font-weight:600;letter-spacing:.02em;line-height:1"></div>'+
+      '<div id="veilDate" style="font-size:3.2vw;color:#8b93a1;margin-top:1.4vh"></div>'+
+      (mode==='meteo'?'<div id="veilWx" style="font-size:3.6vw;color:#aab2bf;margin-top:2.4vh"></div>':'')+'</div>';
+    const upd=()=>{const d=new Date();const c=document.getElementById('veilClk');if(!c)return;
+      c.textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')});
+      const de=document.getElementById('veilDate');if(de)de.textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+      if(mode==='meteo'){const w=document.getElementById('veilWx'),s=document.getElementById('wxBar');if(w)w.textContent=((s&&s.textContent)||'').trim();}
+      // anti-marquage : léger déplacement aléatoire du bloc chaque minute
+      const b=document.getElementById('veilBox');
+      if(b&&d.getSeconds()===0)b.style.transform='translate('+(-50+(Math.random()*8-4))+'%,'+(-50+(Math.random()*8-4))+'%)';
+    };
+    upd();v._t=setInterval(upd,1000);
+  }
   document.body.appendChild(v);
-  fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:false})}).catch(()=>{});
+  if(mode==='off')fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:false})}).catch(()=>{});
 }
 function screenOn(){
   screenIsOff=false;
-  fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:true})}).catch(()=>{});
-  const v=document.getElementById('veil');if(v)setTimeout(()=>v.remove(),150);
+  if((state.veilleMode||'off')==='off')fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:true})}).catch(()=>{});
+  const v=document.getElementById('veil');if(v){if(v._t)clearInterval(v._t);setTimeout(()=>v.remove(),150);}
   resetIdle();
 }
 function resetIdle(){clearTimeout(idleT);clearTimeout(veilleT);if(state.autolock>0&&state.lockEnabled)idleT=setTimeout(doLogout,state.autolock*60000);if((state.veille||0)>0&&!screenIsOff)veilleT=setTimeout(screenOff,state.veille*60000);}
