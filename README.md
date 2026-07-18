@@ -138,6 +138,8 @@ charge l'interface (`window.PandaAddons.<id>.render(el, sdk, tile)`), monte le
 backend sous `/addons/<id>/api/*`, fournit un state JSON persistant (≤ 64 Ko)
 et des hooks d'arrière-plan. Contrat gelé `kiosk_api 1.x` : voir
 `docs/sdk-addons.md` et le dépôt [Abeille](https://github.com/TheWorms/abeille).
+Le store est **signé** (Ed25519) : modèle de confiance et hébergement d'un
+store personnel dans [docs/store-signing.md](docs/store-signing.md).
 
 ## Licence
 
