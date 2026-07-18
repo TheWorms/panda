@@ -43,8 +43,13 @@ DEFAULT_ADMIN_PW = "admin"
 # index.json et les paquets. Surchargeable via la config (clé storeUrl) pour
 # pointer un dépôt de test sans redéployer.
 DEFAULT_STORE_URL = "https://raw.githubusercontent.com/TheWorms/abeille/main/"
+# Clé publique Ed25519 (base64) du store officiel Abeille : authentifie
+# index.json (signé par sign-index.py sur le poste d'admin ; la clé privée
+# ne quitte jamais ce poste). En dur dans le socle : seule une modification
+# du code (accès root) peut changer la racine de confiance du mode officiel.
+STORE_OFFICIAL_PUBKEY = "8naRKWwUoxagk+OHZ9IdXGPcmsZGmmQo79BZXCEwa4c="
 ALLOWED_KEYS = {"installed", "hidden", "order", "railOn", "connBar", "theme", "ntp",
-                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "font"}
+                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "font"}
 import registry as _registry
 
 _REGISTRY, _REGISTRY_ERRORS = _registry.load()
@@ -732,6 +737,35 @@ def _kiosk_api_ok(spec):
         return False
 
 
+def _store_pubkey():
+    """Clé publique (base64) qui authentifie l'index du store.
+
+    Mode « officiel » (défaut) : la clé du store Abeille, codée en dur dans
+    le socle (STORE_OFFICIAL_PUBKEY). Mode « perso » : la clé fournie par
+    l'utilisateur (storePubkey) — obligatoire, un store perso sans clé est
+    refusé (mode strict).
+    """
+    cfg = _load()
+    if (cfg.get("storeMode") or "officiel").strip() == "perso":
+        return (cfg.get("storePubkey") or "").strip()
+    return STORE_OFFICIAL_PUBKEY
+
+
+def _verify_index_sig(blob, sig_b64):
+    """Vérifie la signature Ed25519 de l'index (octets bruts). True si OK."""
+    import base64
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PublicKey,
+    )
+    try:
+        pub = Ed25519PublicKey.from_public_bytes(
+            base64.b64decode(_store_pubkey()))
+        pub.verify(base64.b64decode(sig_b64.strip()), blob)
+        return True
+    except Exception:
+        return False
+
+
 def _installed():
     """{id: (version, source)} des addons chargés. source ∈ {socle, store}."""
     out = {}
@@ -743,15 +777,35 @@ def _installed():
 
 
 def _fetch_index():
-    """Récupère et parse index.json. Retourne (index|None, erreur|None)."""
+    """Récupère, AUTHENTIFIE puis parse index.json.
+
+    Mode strict : l'index doit être accompagné d'index.json.sig (Ed25519),
+    vérifiable par la clé du mode courant (_store_pubkey). Sans signature
+    valide, rien n'est installable depuis le store. Garde-fou d'urgence :
+    storeNoSig=true saute la vérification (dépannage uniquement — ne jamais
+    laisser actif).
+    Retourne (index|None, erreur|None)."""
     url = _store_url() + "index.json"
     try:
         r = requests.get(url, headers=_store_headers(), verify=_store_verify(), timeout=8)
         r.raise_for_status()
-        data = r.json()
+        blob = r.content
     except requests.RequestException as e:
         return None, f"dépôt injoignable : {e}"
-    except ValueError:
+    if not _load().get("storeNoSig"):
+        if not _store_pubkey():
+            return None, "store perso : clé publique manquante (mode strict)"
+        try:
+            rs = requests.get(url + ".sig", headers=_store_headers(),
+                              verify=_store_verify(), timeout=8)
+            rs.raise_for_status()
+        except requests.RequestException as e:
+            return None, f"signature de l'index introuvable : {e}"
+        if not _verify_index_sig(blob, rs.text):
+            return None, "signature de l'index invalide — store refusé"
+    try:
+        data = json.loads(blob.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
         return None, "index.json illisible (JSON invalide)"
     if not isinstance(data, dict) or not isinstance(data.get("addons"), list):
         return None, "index.json : format inattendu"
