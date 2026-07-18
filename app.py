@@ -36,7 +36,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -1043,6 +1043,109 @@ def _resolve_missing_requires(index, aid, _seen=None):
         out.extend(_resolve_missing_requires(index, dep, _seen))
         out.append(dep)
     return out
+
+
+def _upd_progress_path():
+    """Fichier de progression du batch (partagé entre les workers gunicorn)."""
+    return os.path.join(_registry.ADDONS_DIR, ".update-all.json")
+
+
+def _upd_write(d):
+    d["ts"] = time.time()
+    try:
+        tmp = _upd_progress_path() + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(d, fh, ensure_ascii=False)
+        os.replace(tmp, _upd_progress_path())
+    except OSError:
+        pass
+
+
+def _upd_read():
+    try:
+        with open(_upd_progress_path(), encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _upd_order(ids, index):
+    """Ordonne les mises à jour : les dépendances (requires) avant leurs
+    dépendants, quand les deux sont dans le lot (ex. kitchenowl avant stock)."""
+    reqs = {a["id"]: set(a.get("requires") or [])
+            for a in index["addons"] if a.get("id") in ids}
+    out, todo = [], list(ids)
+    while todo:
+        moved = False
+        for aid in list(todo):
+            if reqs.get(aid, set()) & (set(todo) - {aid}):
+                continue                      # une dépendance attend encore
+            out.append(aid)
+            todo.remove(aid)
+            moved = True
+        if not moved:                         # cycle improbable : tel quel
+            out.extend(todo)
+            break
+    return out
+
+
+def _update_all_worker(ids, index):
+    """Met à jour les addons en séquence (thread), puis UN SEUL restart.
+
+    Chaque pose est atomique (_install_one_addon) : un échec laisse l'addon
+    à son ancienne version et n'empêche pas la suite — sauf ses dépendants,
+    sautés pour rester cohérents. Bilan écrit avant le restart final.
+    """
+    total = len(ids)
+    done, errors, failed = 0, [], set()
+    for i, aid in enumerate(ids, 1):
+        entry = next((a for a in index["addons"] if a.get("id") == aid), {})
+        name = entry.get("name", aid)
+        _upd_write({"running": True, "i": i, "current": name,
+                    "done": done, "total": total, "errors": errors})
+        if set(entry.get("requires") or []) & failed:
+            errors.append(f"{name} : saut (dépendance en échec)")
+            failed.add(aid)
+            continue
+        ok, reason = _install_one_addon(aid, index)
+        if ok:
+            done += 1
+        else:
+            errors.append(reason or f"{name} : échec")
+            failed.add(aid)
+    _upd_write({"running": False, "i": total, "current": "", "done": done,
+                "total": total, "errors": errors, "restarting": True})
+    time.sleep(1.5)
+    _run(["sudo", "systemctl", "restart", "panda"], timeout=15)
+
+
+@app.route("/api/store/update-all", methods=["POST"])
+@require_admin
+def api_store_update_all():
+    """Met à jour TOUS les addons en statut « maj », puis un restart unique."""
+    st = _upd_read()
+    if st and st.get("running") and time.time() - st.get("ts", 0) < 600:
+        return jsonify({"ok": False, "reason": "mise à jour déjà en cours"}), 409
+    index, err = _fetch_index()
+    if err:
+        return jsonify({"ok": False, "reason": err}), 502
+    ids = [x["id"] for x in _cross_index(index) if x["status"] == "maj"]
+    if not ids:
+        return jsonify({"ok": True, "total": 0})
+    ids = _upd_order(ids, index)
+    _upd_write({"running": True, "i": 0, "current": "", "done": 0,
+                "total": len(ids), "errors": []})
+    import threading
+    threading.Thread(target=_update_all_worker, args=(ids, index),
+                     daemon=True).start()
+    return jsonify({"ok": True, "total": len(ids), "ids": ids})
+
+
+@app.route("/api/store/update-all/status")
+@require_admin
+def api_store_update_all_status():
+    """Progression du batch (lue par le voile côté kiosk)."""
+    return jsonify(_upd_read() or {"running": False, "total": 0})
 
 
 @app.route("/api/store/install", methods=["POST"])
