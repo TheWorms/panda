@@ -1809,9 +1809,13 @@ async function renderStoreList(box){
   const head=document.getElementById('storehead');
   if(head){
     const dt=(d&&d.updated)?new Date(d.updated).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    const nMaj=(d&&d.addons?d.addons.filter(a=>a.status==='maj').length:0);
     head.innerHTML='<div class="cmeta" style="margin:0">Index : '+dt+'</div>'+
+      (nMaj>=2?'<button class="btnpill install" id="storeMajAll">⟳ Tout mettre à jour ('+nMaj+')</button>':'')+
       '<button class="btnpill" id="storeRefresh">⟳ Rafraîchir</button>';
     head.querySelector('#storeRefresh').addEventListener('click',()=>{checkStoreUpdates(true);renderAppList();});
+    const smaj=head.querySelector('#storeMajAll');
+    if(smaj)smaj.addEventListener('click',storeUpdateAll);
   }
   if(err){box.innerHTML='<div class="cmeta" style="grid-column:1/-1;padding:24px;text-align:center;color:var(--bad)">⚠ '+err+'</div>';return;}
   // profiter de ce fetch pour rafraîchir le badge sans second appel
@@ -2008,6 +2012,35 @@ function storeCascadeConfirm(name, deps){
     o.querySelector('#casNo').addEventListener('click',()=>{o.remove();resolve(false);});
     o.querySelector('#casYes').addEventListener('click',()=>{o.remove();resolve(true);});
   });
+}
+/* « Tout mettre à jour » : le serveur enchaîne les MAJ (signature + sha256
+   par addon, dépendances d'abord) puis UN SEUL restart. Ici : lancement,
+   voile avec compteur (poll du status), bilan bref, reload. */
+async function storeUpdateAll(){
+  let d=null;
+  try{const r=await fetch('/api/store/update-all',{method:'POST'});d=await r.json();}catch(e){}
+  if(!d||!d.ok){toast('\u26a0 '+((d&&d.reason)||'lancement impossible'));return;}
+  if(!d.total){toast('Aucune mise \u00e0 jour disponible');return;}
+  const ov=storeBusy('Mise \u00e0 jour 1 sur '+d.total+'\u2026');
+  const msg=ov.querySelector('.stbmsg');
+  let last=null;
+  for(let i=0;i<600;i++){
+    await new Promise(r=>setTimeout(r,800));
+    let st=null;
+    try{const r=await fetch('/api/store/update-all/status',{cache:'no-store'});st=await r.json();}
+    catch(e){break;}                       // serveur injoignable = restart final en cours
+    if(st&&st.total){last=st;
+      if(st.running){if(msg)msg.textContent='Mise \u00e0 jour '+(st.i||1)+' sur '+st.total+(st.current?(' \u2014 '+st.current):'')+'\u2026';}
+      else break;                          // bilan final \u00e9crit
+    }
+  }
+  if(last&&last.errors&&last.errors.length){
+    if(msg)msg.textContent=last.done+'/'+last.total+' mises \u00e0 jour \u2014 '+last.errors.length+' \u00e9chec(s)';
+    await new Promise(r=>setTimeout(r,2500));
+  }else if(last&&msg){msg.textContent=last.total+'/'+last.total+' mises \u00e0 jour \u2713';}
+  try{localStorage.setItem('panda-store-goto','installed');}catch(e){}
+  await waitForRestart();
+  location.reload();
 }
 function storeBusy(msg){
   const o=document.createElement('div');o.className='stbusy';
