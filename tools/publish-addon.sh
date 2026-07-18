@@ -20,9 +20,13 @@
 
 set -euo pipefail
 
-PANDA_REPO="${PANDA_REPO:-/run/media/theworms/Data/Git/panda}"
-STORE_REPO="${STORE_REPO:-/run/media/theworms/Data/Git/abeille}"
-ADDONS_SRC="${ADDONS_SRC:-/run/media/theworms/Data/Git/addons-src}"
+PANDA_REPO="${PANDA_REPO:-$HOME/Git/panda}"
+STORE_REPO="${STORE_REPO:-$HOME/Git/abeille}"
+ADDONS_SRC="${ADDONS_SRC:-$HOME/Git/addons-src}"
+# repli : chemins montés amovibles (sans nom d'utilisateur en dur)
+[ -d "$PANDA_REPO" ] || PANDA_REPO="/run/media/$(id -un)/Data/Git/panda"
+[ -d "$STORE_REPO" ] || STORE_REPO="/run/media/$(id -un)/Data/Git/abeille"
+[ -d "$ADDONS_SRC" ] || ADDONS_SRC="/run/media/$(id -un)/Data/Git/addons-src"
 FORCE="${FORCE:-0}"
 
 err() { printf 'ERREUR : %s\n' "$*" >&2; exit 1; }
