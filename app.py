@@ -689,7 +689,10 @@ def _store_url():
     Le schéma est borné à http/https : toute autre valeur (file://, ftp://…)
     est ignorée au profit du défaut, pour ne pas détourner le fetch.
     """
-    u = (_load().get("storeUrl") or DEFAULT_STORE_URL).strip()
+    cfg = _load()
+    if (cfg.get("storeMode") or "officiel").strip() != "perso":
+        return DEFAULT_STORE_URL  # mode officiel : URL du socle, non surchargeable
+    u = (cfg.get("storeUrl") or DEFAULT_STORE_URL).strip()
     if not (u.startswith("http://") or u.startswith("https://")):
         u = DEFAULT_STORE_URL
     return u if u.endswith("/") else u + "/"
@@ -697,7 +700,10 @@ def _store_url():
 
 def _store_token():
     """Jeton d'accès au dépôt (optionnel), pour un Abeille protégé."""
-    return (_load().get("storeToken") or "").strip()
+    cfg = _load()
+    if (cfg.get("storeMode") or "officiel").strip() != "perso":
+        return ""  # mode officiel : dépôt public, aucun jeton envoyé
+    return (cfg.get("storeToken") or "").strip()
 
 
 def _store_headers():
