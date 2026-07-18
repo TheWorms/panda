@@ -36,7 +36,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.2.0"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -49,7 +49,7 @@ DEFAULT_STORE_URL = "https://raw.githubusercontent.com/TheWorms/abeille/main/"
 # du code (accès root) peut changer la racine de confiance du mode officiel.
 STORE_OFFICIAL_PUBKEY = "8naRKWwUoxagk+OHZ9IdXGPcmsZGmmQo79BZXCEwa4c="
 ALLOWED_KEYS = {"installed", "hidden", "order", "railOn", "connBar", "theme", "ntp",
-                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "font"}
+                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "font"}
 import registry as _registry
 
 _REGISTRY, _REGISTRY_ERRORS = _registry.load()
@@ -60,7 +60,7 @@ DEFAULT_CONFIG = {
     "hidden": [], "order": list(_REG_DEFAULTS),
     "railOn": False, "connBar": True, "theme": "dark", "ntp": True, "autolock": 0, "lockEnabled": True,
     "modules": {}, "names": {}, "catOrder": [], "vkb": True, "agCals": {}, "radioFav": [], "transFav": [], "delMode": False, "timerSound": "",
-    "veille": 0, "brightness": 100, "rotation": "normal",
+    "veille": 0, "veilleMode": "off", "brightness": 100, "rotation": "normal",
     "timers": [{"n": "Œuf coque", "s": 180}, {"n": "Œuf mollet", "s": 300},
                {"n": "Pâtes", "s": 600}, {"n": "Riz", "s": 660},
                {"n": "Thé vert", "s": 180}, {"n": "Infusion", "s": 300}],
