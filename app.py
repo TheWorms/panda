@@ -36,7 +36,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.9.0"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -49,7 +49,7 @@ DEFAULT_STORE_URL = "https://raw.githubusercontent.com/TheWorms/abeille/main/"
 # du code (accès root) peut changer la racine de confiance du mode officiel.
 STORE_OFFICIAL_PUBKEY = "8naRKWwUoxagk+OHZ9IdXGPcmsZGmmQo79BZXCEwa4c="
 ALLOWED_KEYS = {"installed", "hidden", "order", "railOn", "connBar", "theme", "ntp",
-                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "font"}
+                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "veilleOff", "font", "railMode", "timerDisplay"}
 import registry as _registry
 
 _REGISTRY, _REGISTRY_ERRORS = _registry.load()
@@ -58,9 +58,9 @@ _REG_DEFAULTS = _registry.default_installed(_REGISTRY)
 DEFAULT_CONFIG = {
     "installed": list(_REG_DEFAULTS),
     "hidden": [], "order": list(_REG_DEFAULTS),
-    "railOn": False, "connBar": True, "theme": "dark", "ntp": True, "autolock": 0, "lockEnabled": True,
-    "modules": {}, "names": {}, "catOrder": [], "vkb": True, "agCals": {}, "radioFav": [], "transFav": [], "delMode": False, "timerSound": "",
-    "veille": 0, "veilleMode": "off", "brightness": 100, "rotation": "normal",
+    "railOn": False, "railMode": "both", "connBar": True, "theme": "dark", "ntp": True, "autolock": 0, "lockEnabled": True,
+    "modules": {}, "names": {}, "catOrder": [], "vkb": True, "agCals": {}, "radioFav": [], "transFav": [], "delMode": False, "timerSound": "", "timerDisplay": "text",
+    "veille": 0, "veilleMode": "off", "veilleOff": 0, "brightness": 100, "rotation": "normal",
     "timers": [{"n": "Œuf coque", "s": 180}, {"n": "Œuf mollet", "s": 300},
                {"n": "Pâtes", "s": 600}, {"n": "Riz", "s": 660},
                {"n": "Thé vert", "s": 180}, {"n": "Infusion", "s": 300}],
@@ -1779,8 +1779,8 @@ def api_veille():
         mins = int(j.get("minutes"))
     except (TypeError, ValueError):
         return jsonify({"ok": False, "reason": "valeur invalide"}), 400
-    if not 0 <= mins <= 240:
-        return jsonify({"ok": False, "reason": "entre 0 et 240 minutes"}), 400
+    if not 0 <= mins <= 720:
+        return jsonify({"ok": False, "reason": "entre 0 et 720 minutes"}), 400
     cfg = _load()
     cfg["veille"] = mins
     _save(cfg)
@@ -2854,6 +2854,85 @@ def api_sounds_delete(name):
     except OSError as e:
         return jsonify({"ok": False, "reason": e.strerror})
     return jsonify({"ok": True})
+
+
+_TIMG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "timer-img")
+_TIMG_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif")
+_TIMG_MAX = 2 * 1024 * 1024
+
+
+def _timg_path(name):
+    if not name or not _SOUND_RE.match(name):
+        raise RuntimeError("nom invalide")
+    if not name.lower().endswith(_TIMG_EXT):
+        raise RuntimeError("format refusé")
+    p = os.path.realpath(os.path.join(_TIMG_DIR, name))
+    if not p.startswith(os.path.realpath(_TIMG_DIR) + os.sep):
+        raise RuntimeError("chemin refusé")
+    return p
+
+
+@app.route("/api/timer/images", methods=["POST"])
+@require_auth
+@require_admin
+def api_timg_upload():
+    """Image d'un préréglage du minuteur (affichée sur la carte)."""
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "reason": "aucun fichier"}), 400
+    base = os.path.basename(f.filename)
+    ext = os.path.splitext(base)[1].lower()
+    if ext not in _TIMG_EXT:
+        return jsonify({"ok": False, "reason": "format refusé (png, jpg, webp, gif)"}), 400
+    stem = _re.sub(r"[^A-Za-z0-9 ._()-]", "_", os.path.splitext(base)[0])[:50] or "image"
+    name = stem + ext
+    blob = f.read(_TIMG_MAX + 1)
+    if len(blob) > _TIMG_MAX:
+        return jsonify({"ok": False, "reason": "fichier trop lourd (max 2 Mo)"}), 400
+    if not blob:
+        return jsonify({"ok": False, "reason": "fichier vide"}), 400
+    os.makedirs(_TIMG_DIR, exist_ok=True)
+    try:
+        p = _timg_path(name)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "reason": str(e)}), 400
+    i = 1
+    while os.path.exists(p):
+        name = f"{stem} ({i}){ext}"
+        p = _timg_path(name)
+        i += 1
+    with open(p, "wb") as out:
+        out.write(blob)
+    return jsonify({"ok": True, "name": name, "size_kb": round(len(blob) / 1024)})
+
+
+@app.route("/api/timer/images/<path:name>", methods=["DELETE"])
+@require_auth
+@require_admin
+def api_timg_delete(name):
+    try:
+        p = _timg_path(name)
+    except RuntimeError as e:
+        return jsonify({"ok": False, "reason": str(e)}), 400
+    if not os.path.isfile(p):
+        return jsonify({"ok": False, "reason": "introuvable"}), 404
+    try:
+        os.remove(p)
+    except OSError as e:
+        return jsonify({"ok": False, "reason": e.strerror})
+    return jsonify({"ok": True})
+
+
+@app.route("/api/timer/image/<path:name>")
+@require_auth
+def api_timg_serve(name):
+    try:
+        p = _timg_path(name)
+    except RuntimeError:
+        return Response(status=400)
+    if not os.path.isfile(p):
+        return Response(status=404)
+    return send_from_directory(_TIMG_DIR, os.path.basename(p), conditional=True)
 
 
 @app.route("/api/timer/sound/<path:name>")
