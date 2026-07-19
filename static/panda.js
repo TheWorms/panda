@@ -24,7 +24,7 @@ async function loadRegistry(){
   return false;
 }
 
-let state={installed:[],hidden:[],order:[],railOn:false,lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',veilleMode:'off',font:'system'};
+let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',veilleMode:'off',veilleOff:0,font:'system'};
 function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
 /* Icônes Tabler : mapping emoji → nom d'icône, + helper de rendu.
    Fallback : un emoji non mappé est affiché tel quel. ic() renvoie du HTML
@@ -48,7 +48,7 @@ function sanitize(){
 let pushT;
 function save(){
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,veilleMode:state.veilleMode,font:state.font})}).catch(()=>{});},250);
+  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,veilleMode:state.veilleMode,veilleOff:state.veilleOff,font:state.font})}).catch(()=>{});},250);
 }
 async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){Object.assign(state,await r.json());sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
@@ -116,9 +116,9 @@ function renderHome(){
   if(state.railOn){
     const cats=sortedCats([...new Set(ids.map(id=>catOf(id)))]);
     if(!railCat||!cats.includes(railCat))railCat=cats[0];
-    home.innerHTML='<nav class="railv" id="railv"></nav><div class="homecol"><div class="grid narrow" id="grid"></div></div>';
+    home.innerHTML='<nav class="railv m-'+(state.railMode||'both')+'" id="railv"></nav><div class="homecol"><div class="grid narrow" id="grid"></div></div>';
     const rv=document.getElementById('railv');
-    cats.forEach(c=>{const el=document.createElement('div');el.className='cat'+(c===railCat?' on':'');const A=allCats();el.innerHTML='<span>'+ic((A[c]||{i:'📁'}).i)+'</span><span>'+(A[c]||{l:c}).l+'</span>';el.addEventListener('click',()=>{railCat=c;renderHome();});rv.appendChild(el);});
+    cats.forEach(c=>{const el=document.createElement('div');el.className='cat'+(c===railCat?' on':'');const A=allCats();el.innerHTML='<span class="cico">'+ic((A[c]||{i:'📁'}).i)+'</span><span class="ctxt">'+(A[c]||{l:c}).l+'</span>';if((state.railMode||'both')==='icons')el.title=(A[c]||{l:c}).l;el.addEventListener('click',()=>{railCat=c;renderHome();});rv.appendChild(el);});
     gridEl=document.getElementById('grid');
     fillGrid(ids.filter(id=>catOf(id)===railCat),false);
   }else{
@@ -251,7 +251,7 @@ function openAddon(id){
   if(a.id==='wifi')loadWifiView(a);
   if(a.id==='bluetooth')loadBtView(a);
   if(a.id==='maj')loadUpdatesView(a);
-  if(a.id==='instagram')loadInstaView(a);
+  if(a.id==='instagram'&&!a.ui)loadInstaView(a);   // doublon hérité : seulement si l'addon n'est pas résolu en type:code
   if(a.id==='minuteur')loadTimerView(a);
   if((a.type==='iframe'||a.type==='browser')&&a.id!=='kuma'&&a.id!=='grafana'&&a.id!=='proxmox'&&a.id!=='pihole'&&a.id!=='backups'&&a.id!=='wyl'&&a.id!=='forgejo'&&a.id!=='wikijs'&&a.id!=='arcane'&&a.id!=='navigateur')loadLaunchView(a);
   addonView.classList.add('show');
@@ -474,12 +474,21 @@ function renderTimer(a){
      '<button id="tmAdd">Enregistrer</button></div><div class="kotoast" id="tmErr"></div>';
   h+='<div class="wsec" style="padding-left:0">Préréglages</div>';
   if(!presets.length)h+='<div class="stub"><div class="t2">Aucun préréglage — ajoute-en un ci-dessus</div></div>';
-  else h+='<div class="tmgrid">'+presets.map((p,i)=>'<div class="tmcard" data-i="'+i+'"'+
-    (p.bg?(' style="background:'+p.bg+'"'):'')+'>'+
-    '<div class="tmcn"'+(p.color?(' style="color:'+p.color+'"'):'')+'>'+p.n+'</div>'+
-    '<div class="tmct">'+tmFmt(p.s)+'</div>'+
-    (p.sound?'<div class="tmct" style="font-size:9.5px">🔔 '+p.sound.replace(/\.[^.]+$/,'')+'</div>':'')+
-    '</div>').join('')+'</div>';
+  else{
+    const mode=state.timerDisplay||'text';
+    h+='<div class="tmgrid">'+presets.map((p,i)=>{
+      const ico=p.i||'⏱️';
+      let inner='';
+      if(mode==='icons')inner='<div class="tmci">'+ico+'</div>';
+      else if(mode==='images')inner=p.img?('<img class="tmcimg" src="/api/timer/image/'+encodeURIComponent(p.img)+'" alt="">'):('<div class="tmci">'+ico+'</div>');
+      else if(mode==='both')inner=p.img?('<div class="tmcimg-wrap"><img class="tmcimg" src="/api/timer/image/'+encodeURIComponent(p.img)+'" alt=""><span class="tmcimg-ic">'+(p.i||'')+'</span></div>'):('<div class="tmci">'+ico+'</div>');
+      else inner='<div class="tmcn"'+(p.color?(' style="color:'+p.color+'"'):'')+'>'+p.n+'</div>';
+      return '<div class="tmcard" data-i="'+i+'" title="'+p.n.replace(/"/g,'&quot;')+'"'+
+        (p.bg?(' style="background:'+p.bg+'"'):'')+'>'+inner+
+        '<div class="tmct">'+tmFmt(p.s)+'</div>'+
+        (mode==='text'&&p.sound?'<div class="tmct" style="font-size:9.5px">🔔 '+p.sound.replace(/\.[^.]+$/,'')+'</div>':'')+
+        '</div>';}).join('')+'</div>';
+  }
   h+='<div class="wsrc">Minuteur local · la sonnerie utilise la sortie audio du kiosk</div>';
   el.innerHTML=h;
   const fr=document.getElementById('tmFrame');
@@ -1007,12 +1016,12 @@ function igRender(){
 function ymdLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function dDate(x){return new Date(x).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});}
 function viewFor(a){
-  if(a.ui)return '<div id="auiBody" style="padding:14px 22px"><div class="stub"><div class="t2">Chargement de la vue…</div></div></div>';
+  if(a.ui)return '<div id="auiBody" style="padding:14px 22px;flex:1 0 auto;display:flex;flex-direction:column;min-height:0;box-sizing:border-box"><div class="stub"><div class="t2">Chargement de la vue…</div></div></div>';
   if(a.ui||a.decl)return '<div id="adBody" style="padding:14px 22px"></div>';
   if(a.id==='wifi')return '<div id="wfBody" style="padding:14px 22px"></div>';
   if(a.id==='bluetooth')return '<div id="btBody" style="padding:14px 22px"></div>';
   if(a.id==='maj')return '<div id="mjBody" style="padding:14px 22px"></div>';
-  if(a.id==='instagram')return '<div id="igBody" style="padding:14px 22px"></div>';
+  if(a.id==='instagram'&&!a.ui)return '<div id="igBody" style="padding:14px 22px"></div>';
   if(a.id==='minuteur')return '<div id="tmBody" style="padding:14px 22px"></div>';
   if(a.id==='proxmox')return '<div id="pveBody" style="padding:14px 22px"><div class="stub"><div class="t2">Chargement de Proxmox…</div></div></div>';
   if(a.id==='grafana')return '<div id="grafBody" style="padding:14px 22px"><div class="stub"><div class="t2">Chargement de Grafana…</div></div></div>';
@@ -1288,6 +1297,12 @@ const meteoGeoPicker=()=>{
   if(a.id==='meteo'||a.id==='lune')h+='<div id="geoPick" style="margin:2px 0 10px"></div>';
   if(a.id==='instagram'&&!a.ui)h+='<div id="igCtl" style="margin:2px 0 10px"></div>';
   if(a.ui)h+='<div id="auiCfg" style="margin:2px 0 10px"></div>';
+  if((state.installed||[]).includes(a.id)){
+    const shownHome=!(state.hidden||[]).includes(a.id);
+    h+='<div class="setrow" style="margin-top:6px"><div class="lft"><div class="t">🏠 Afficher sur l\'accueil</div>'+
+       '<div class="d">Affiche ou masque la tuile de cet addon sur l\'écran d\'accueil</div></div>'+
+       '<div class="sw'+(shownHome?' on':'')+'" id="swHomeCfg"></div></div>';
+  }
   const DEL_ADDONS=['instagram','recettes'];
   if(DEL_ADDONS.includes(a.id)&&(state.installed||[]).includes(a.id))
     h+='<div class="setrow" style="margin-top:6px"><div class="lft"><div class="t">🗑️ Mode suppression</div>'+
@@ -1295,6 +1310,13 @@ const meteoGeoPicker=()=>{
        '<div class="sw'+(state.delMode?' on':'')+'" id="swDelCfg"></div></div>';
   h+='<div style="display:flex;gap:10px;margin-top:6px"><button class="btnpill install" id="cfgSave">Enregistrer</button>'+(fields.length?'<button class="btnpill" id="cfgTest">Tester</button>':'')+((a.source==='store'&&(state.installed||[]).includes(a.id))?'<button class="btnpill stdanger" id="cfgUninstall">Désinstaller</button>':'')+'</div><div id="cfgResult" style="margin-top:12px;font-family:var(--mono);font-size:12.5px"></div></div>';
   body.innerHTML=h;
+  const swh=document.getElementById('swHomeCfg');
+  if(swh)swh.addEventListener('click',()=>{
+    const hidden=(state.hidden||[]).includes(a.id);
+    if(hidden)state.hidden=(state.hidden||[]).filter(x=>x!==a.id);
+    else state.hidden=(state.hidden||[]).concat(a.id);
+    swh.classList.toggle('on',hidden);save();renderHome();
+    toast(hidden?dnm(a)+' affiché sur l\'accueil':dnm(a)+' masqué de l\'accueil');});
   const swc=document.getElementById('swDelCfg');
   if(swc)swc.addEventListener('click',()=>{
     state.delMode=!state.delMode;swc.classList.toggle('on',state.delMode);save();
@@ -1366,9 +1388,16 @@ async function secTimer(){
 function renderTimerSection(){
   const p=state.timers||[];
   let h='<h4>Minuteur</h4><div class="desc">Préréglages, sonnerie et couleurs du compte à rebours.</div>';
+  h+='<div class="setrow"><div class="lft"><div class="t">Affichage des préréglages</div><div class="d">Contenu des cartes dans la vue Minuteur (la durée reste toujours visible)</div></div><select class="inp" id="tzDisp" style="max-width:210px">'+
+    '<option value="text"'+((state.timerDisplay||'text')==='text'?' selected':'')+'>Textes seulement</option>'+
+    '<option value="icons"'+(state.timerDisplay==='icons'?' selected':'')+'>Icônes seulement</option>'+
+    '<option value="images"'+(state.timerDisplay==='images'?' selected':'')+'>Images seulement</option>'+
+    '<option value="both"'+(state.timerDisplay==='both'?' selected':'')+'>Icônes + images</option>'+
+    '</select></div>';
   h+='<div class="wsec" style="padding-left:0">Préréglages</div>';
-  h+=p.length?p.map((x,i)=>'<div class="igtf" style="cursor:default"><span>⏱️</span>'+
+  h+=p.length?p.map((x,i)=>'<div class="igtf" style="cursor:default"><span>'+(x.i||'⏱️')+'</span>'+
       '<span class="nm" style="flex:1'+(x.color?(';color:'+x.color):'')+'">'+x.n+'</span>'+
+      (x.img?'<img src="/api/timer/image/'+encodeURIComponent(x.img)+'" style="width:26px;height:26px;object-fit:cover;border-radius:6px;border:1px solid var(--border-soft)" alt="">':'')+
       (x.bg?'<span style="width:16px;height:16px;border-radius:5px;background:'+x.bg+';border:1px solid var(--border-soft)"></span>':'')+
       '<span class="sz" style="margin-left:auto;padding-right:6px">'+tmFmt(x.s)+'</span>'+
       '<span class="sz" style="min-width:96px;flex:none;color:var(--faint)">'+(x.sound?('🔔 '+x.sound.replace(/\.[^.]+$/,'')):'🔔 bip')+'</span>'+
@@ -1391,10 +1420,14 @@ function renderTimerSection(){
   setcontent.querySelectorAll('[data-tdel]').forEach(b=>b.addEventListener('click',()=>{
     const i=parseInt(b.dataset.tdel);
     if(!confirm('Supprimer le préréglage « '+state.timers[i].n+' » ?'))return;
+    const im=state.timers[i].img;
+    if(im&&!state.timers.some((t,k)=>k!==i&&t.img===im))fetch('/api/timer/images/'+encodeURIComponent(im),{method:'DELETE'}).catch(()=>{});
     state.timers.splice(i,1);save();renderTimerSection();}));
   setcontent.querySelectorAll('[data-tedit]').forEach(b=>b.addEventListener('click',()=>
     tzEditor(parseInt(b.dataset.tedit))));
   document.getElementById('tzNew').addEventListener('click',()=>tzEditor(-1));
+  const tzd=document.getElementById('tzDisp');
+  if(tzd)tzd.addEventListener('change',()=>{state.timerDisplay=tzd.value;save();toast('Affichage du minuteur mis à jour');});
   setcontent.querySelectorAll('[data-play]').forEach(b=>b.addEventListener('click',()=>{
     tmPreviewToggle(b.dataset.play,()=>renderTimerSection());
     renderTimerSection();}));
@@ -1419,11 +1452,19 @@ function renderTimerSection(){
   });
 }
 function tzEditor(idx){
-  const est=idx>=0?Object.assign({},state.timers[idx]):{n:'',s:300,sound:'',color:'',bg:''};
+  const est=idx>=0?Object.assign({},state.timers[idx]):{n:'',s:300,sound:'',color:'',bg:'',i:'',img:''};
   const sh=document.createElement('div');sh.className='evsheet';
   sh.innerHTML='<div class="evbox" style="width:500px"><div class="evtitle">⏱️ '+(idx>=0?'Modifier':'Nouveau')+' préréglage</div>'+
     '<div class="koadd"><input id="tzEN" placeholder="Nom (ex. Riz)" value="'+(est.n||'').replace(/"/g,'&quot;')+'">'+
     '<input id="tzEM" type="number" inputmode="decimal" placeholder="minutes" value="'+(est.s/60)+'" style="max-width:120px"></div>'+
+    '<div class="cfgf" style="margin-top:10px"><span>Icône</span>'+
+      '<input class="inp" id="tzEI" maxlength="4" placeholder="emoji (ex. 🥚)" value="'+(est.i||'').replace(/"/g,'&quot;')+'" style="max-width:130px">'+
+      '<span id="tzEIPal" style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:8px">'+
+      ['🥚','🍝','🍚','🍵','🫖','☕','🍰','🍕','🥦','🍗','🥔','🍞'].map(e=>'<span class="igbtn2" data-tzei="'+e+'" style="font-size:17px;padding:3px 7px">'+e+'</span>').join('')+'</span></div>'+
+    '<div class="cfgf" style="margin-top:10px"><span>Image</span>'+
+      '<span id="tzEImgCur">'+(est.img?('<img src="/api/timer/image/'+encodeURIComponent(est.img)+'" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border-soft);vertical-align:middle" alt="">'):'<span style="color:var(--faint);font-size:12px">aucune</span>')+'</span>'+
+      '<input type="file" id="tzEImg" accept="image/*" class="inp" style="flex:1;min-width:0">'+
+      '<span class="igbtn2" id="tzEImgX">Retirer</span></div>'+
     '<div class="cfgf" style="margin-top:10px"><span>Sonnerie</span>'+
       '<select class="inp" id="tzES"><option value="">Bip par défaut</option>'+
       tzSounds.map(x=>'<option value="'+x.name+'"'+(est.sound===x.name?' selected':'')+'>'+x.name+'</option>').join('')+
@@ -1441,8 +1482,34 @@ function tzEditor(idx){
   document.body.appendChild(sh);
   let color=est.color||'',bg=est.bg||'';
   const close=()=>{tmPreviewStop();sh.remove();};
-  sh.querySelector('#tzECancel').addEventListener('click',close);
-  sh.addEventListener('click',e=>{if(e.target===sh)close();});
+  const cancel=()=>{
+    if(eImg&&eImg!==(est.img||'')&&!(state.timers||[]).some(t=>t.img===eImg))
+      fetch('/api/timer/images/'+encodeURIComponent(eImg),{method:'DELETE'}).catch(()=>{});
+    close();};
+  sh.querySelector('#tzECancel').addEventListener('click',cancel);
+  sh.addEventListener('click',e=>{if(e.target===sh)cancel();});
+  let eIcon=est.i||'',eImg=est.img||'';
+  const eiIn=sh.querySelector('#tzEI');
+  eiIn.addEventListener('input',()=>eIcon=eiIn.value.trim());
+  sh.querySelectorAll('[data-tzei]').forEach(b=>b.addEventListener('click',()=>{eIcon=b.dataset.tzei;eiIn.value=eIcon;}));
+  const eimgCur=sh.querySelector('#tzEImgCur');
+  const eimgShow=()=>{eimgCur.innerHTML=eImg?('<img src="/api/timer/image/'+encodeURIComponent(eImg)+'" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border-soft);vertical-align:middle" alt="">'):'<span style="color:var(--faint);font-size:12px">aucune</span>';};
+  sh.querySelector('#tzEImg').addEventListener('change',async ev=>{
+    const f=ev.target.files[0];if(!f)return;
+    const fd=new FormData();fd.append('file',f);
+    const errEl=sh.querySelector('#tzEErr');errEl.textContent='Envoi de l\'image…';
+    try{
+      const r=await fetch('/api/timer/images',{method:'POST',body:fd});
+      const j=await r.json();
+      if(j.ok){
+        if(eImg&&eImg!==j.name&&!(state.timers||[]).some(t=>t.img===eImg))fetch('/api/timer/images/'+encodeURIComponent(eImg),{method:'DELETE'}).catch(()=>{});
+        eImg=j.name;eimgShow();errEl.textContent='';
+      }else errEl.textContent=j.reason||'Envoi impossible';
+    }catch(e){errEl.textContent='Serveur injoignable';}
+  });
+  sh.querySelector('#tzEImgX').addEventListener('click',()=>{
+    if(eImg&&!(state.timers||[]).some(t=>t.img===eImg))fetch('/api/timer/images/'+encodeURIComponent(eImg),{method:'DELETE'}).catch(()=>{});
+    eImg='';eimgShow();toast('Image retirée');});
   sh.querySelector('#tzEC').addEventListener('input',e=>color=e.target.value);
   sh.querySelector('#tzEB').addEventListener('input',e=>bg=e.target.value);
   sh.querySelector('#tzECx').addEventListener('click',()=>{color='';toast('Couleur de texte par défaut');});
@@ -1460,7 +1527,7 @@ function tzEditor(idx){
     const n=(sh.querySelector('#tzEN').value||'').trim();
     const v=parseFloat(sh.querySelector('#tzEM').value||'0');
     if(!n||!(v>0)){sh.querySelector('#tzEErr').textContent='Donne un nom et une durée en minutes';return;}
-    const obj={n:n,s:Math.round(v*60),sound:sh.querySelector('#tzES').value||'',color:color,bg:bg};
+    const obj={n:n,s:Math.round(v*60),sound:sh.querySelector('#tzES').value||'',color:color,bg:bg,i:eIcon,img:eImg};
     state.timers=state.timers||[];
     if(idx>=0)state.timers[idx]=obj;else state.timers.push(obj);
     save();close();renderTimerSection();
@@ -1826,34 +1893,63 @@ async function renderStoreList(box){
   });
   box.innerHTML='';
   if(!items.length){box.innerHTML='<div class="cmeta" style="grid-column:1/-1;padding:24px;text-align:center">Aucun addon ne correspond.</div>';return;}
-  items.forEach(a=>{
-    const by=BYID[a.id];
-    const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'');
-    const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?by.color:'#f0b429');
-    let el,acts;
-    if(appView==='cards'){
-      el=document.createElement('div');el.className='appcard'+(a.status==='incompatible'?' off':'');
-      el.innerHTML='<div class="apptop"><div class="cic">'+ic(icoName,icoCol)+'</div>'+
-        '<div class="ctt">'+(a.name||a.id)+storeBadge(a)+'</div></div>'+
-        '<div class="cmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+'</div>';
-      acts=document.createElement('div');acts.className='cacts';
-    }else{
-      el=document.createElement('div');el.className='approw'+(a.status==='incompatible'?' off':'');
-      el.innerHTML='<div class="rico">'+ic(icoName,icoCol)+'</div>'+
-        '<div class="rtx"><div class="rnm">'+(a.name||a.id)+storeBadge(a)+'</div>'+
-        '<div class="rmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+(a.description?(' · '+a.description):'')+'</div></div>';
-      acts=document.createElement('div');acts.className='racts';
-    }
-    const an=storeActionNode(a);if(an)acts.appendChild(an);
-    el.appendChild(acts);
-    el.addEventListener('click',()=>openAddonDetail(a));
-    box.appendChild(el);
-  });
+  // Rendu groupé par sections. L'ordre des sections traduit la priorité de lecture.
+  const SECTIONS=[
+    {key:'maj',        label:'\u2b06\ufe0f  \u00c0 mettre \u00e0 jour', match:a=>a.status==='maj'},
+    {key:'disponible', label:'\u2728  Nouveaux',                        match:a=>a.status==='disponible'},
+    {key:'installe',   label:'\u2713  Install\u00e9s',                  match:a=>a.status==='installe'},
+    {key:'incompatible',label:'\u26a0\ufe0f  Incompatibles',           match:a=>a.status==='incompatible'},
+  ];
+  // Quand un tri explicite est choisi (nom/catégorie), on n'impose pas les sections.
+  const grouped=(appSortKey!=='name'&&appSortKey!=='cat');
+  if(grouped){
+    let any=false;
+    SECTIONS.forEach(sec=>{
+      const sub=items.filter(sec.match);
+      if(!sub.length)return;
+      any=true;
+      const hd=document.createElement('div');
+      hd.className='storesec';
+      hd.style.cssText='grid-column:1/-1';
+      hd.innerHTML='<span>'+sec.label+'</span><span class="scnt">'+sub.length+'</span>';
+      box.appendChild(hd);
+      sub.forEach(a=>box.appendChild(storeItemNode(a)));
+    });
+    if(!any)box.innerHTML='<div class="cmeta" style="grid-column:1/-1;padding:24px;text-align:center">Aucun addon ne correspond.</div>';
+  }else{
+    items.forEach(a=>box.appendChild(storeItemNode(a)));
+  }
+}
+/* Construit la carte/ligne d'un addon du store (réutilisé par section). */
+function storeItemNode(a){
+  const by=BYID[a.id];
+  const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'');
+  const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?by.color:'#f0b429');
+  const dim=(a.status==='installe'||a.status==='incompatible')?' dimmed':'';
+  let el,acts;
+  if(appView==='cards'){
+    el=document.createElement('div');el.className='appcard st-'+a.status+dim+(a.status==='incompatible'?' off':'');
+    el.innerHTML='<div class="apptop"><div class="cic">'+ic(icoName,icoCol)+'</div>'+
+      '<div class="ctt">'+(a.name||a.id)+storeBadge(a)+'</div></div>'+
+      '<div class="cmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+'</div>';
+    acts=document.createElement('div');acts.className='cacts';
+  }else{
+    el=document.createElement('div');el.className='approw st-'+a.status+dim+(a.status==='incompatible'?' off':'');
+    el.innerHTML='<div class="rico">'+ic(icoName,icoCol)+'</div>'+
+      '<div class="rtx"><div class="rnm">'+(a.name||a.id)+storeBadge(a)+'</div>'+
+      '<div class="rmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+(a.description?(' · '+a.description):'')+'</div></div>';
+    acts=document.createElement('div');acts.className='racts';
+  }
+  const an=storeActionNode(a);if(an)acts.appendChild(an);
+  el.appendChild(acts);
+  el.addEventListener('click',()=>openAddonDetail(a));
+  return el;
 }
 function storeBadge(a){
-  if(a.status==='maj')return ' <span class="updbadge">MAJ '+a.installed_version+'→'+a.version+'</span>';
-  if(a.status==='installe')return ' <span class="okbadge">✓ installé</span>';
+  if(a.status==='maj')return ' <span class="updbadge">⬆ MAJ '+a.installed_version+'→'+a.version+'</span>';
+  if(a.status==='installe')return ' <span class="instbadge">✓ installé</span>';
   if(a.status==='incompatible')return ' <span class="warnbadge">incompatible</span>';
+  if(a.status==='disponible')return ' <span class="newbadge">✨ nouveau</span>';
   return '';
 }
 function storeActionNode(a){
@@ -1908,13 +2004,17 @@ async function checkStoreUpdates(silent){
   updateStoreBadges();
 }
 function updateStoreBadges(){
-  const n=storeUpd.total||0;
-  // badge sur l'item « Applications » du menu latéral
+  const maj=storeUpd.maj||0;
+  // Pastille MAJ : bouton admin de l'accueil (gear) + item « Applications » du menu.
+  // Ne compte QUE les mises à jour (pas les nouveaux addons).
+  const gearB=document.getElementById('gearBadge');
+  if(gearB){gearB.textContent=maj||'';gearB.style.display=maj?'flex':'none';}
   const navApps=document.getElementById('navAppsBadge');
-  if(navApps){navApps.textContent=n||'';navApps.style.display=n?'inline-flex':'none';}
-  // badge sur la puce « Store »
+  if(navApps){navApps.textContent=maj||'';navApps.style.display=maj?'inline-flex':'none';}
+  // La puce « Store » reste discrète : pas de compteur de nouveaux dessus
+  // (les nouveaux se signalent par une pastille verte sur chaque fiche).
   const chip=document.getElementById('storeChipBadge');
-  if(chip){chip.textContent=n||'';chip.style.display=n?'inline-flex':'none';}
+  if(chip){chip.textContent=maj||'';chip.style.display=maj?'inline-flex':'none';}
 }
 function setupStoreTimer(){
   if(storeTimer){clearInterval(storeTimer);storeTimer=null;}
@@ -2210,12 +2310,14 @@ function secApparence(){
     '<div class="setrow"><div class="lft"><div class="t">Style d\'icônes</div><div class="d">Style des icônes de tuiles. Météo, lune, marées et jardin gardent leurs emojis à l\'intérieur de leurs vues.</div></div><select class="inp" id="selIcon" style="max-width:190px"><option value="tabler"'+((state.iconStyle||'tabler')==='tabler'?' selected':'')+'>Tabler</option><option value="emoji"'+(state.iconStyle==='emoji'?' selected':'')+'>Emoji (origine)</option><option value="fa"'+(state.iconStyle==='fa'?' selected':'')+'>Font Awesome</option><option value="bootstrap"'+(state.iconStyle==='bootstrap'?' selected':'')+'>Bootstrap</option><option value="openmoji"'+(state.iconStyle==='openmoji'?' selected':'')+'>OpenMoji (coloré)</option></select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Recharger l\'interface</div><div class="d">Recharge l\'affichage — utile pour appliquer pleinement un changement de police ou d\'icônes, ou rafraîchir le kiosk sans le redémarrer.</div></div><button class="btnpill" id="btnReloadUI" type="button">Rafraîchir</button></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Écran</div>'+
-    '<div class="setrow"><div class="lft"><div class="t">Mise en veille écran</div><div class="d">Éteint l\'écran après une période d\'inactivité (un toucher rallume, sans rien déclencher)</div></div><select class="inp" id="veille">'+'<option value="0"'+(state.veille===0?' selected':'')+'>Jamais</option>'+'<option value="5"'+(state.veille===5?' selected':'')+'>5 min</option>'+'<option value="15"'+(state.veille===15?' selected':'')+'>15 min</option>'+'<option value="30"'+(state.veille===30?' selected':'')+'>30 min</option>'+'<option value="60"'+(state.veille===60?' selected':'')+'>1 h</option>'+'<option value="120"'+(state.veille===120?' selected':'')+'>2 h</option>'+'</select></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Mise en veille écran</div><div class="d">Éteint l\'écran après une période d\'inactivité (un toucher rallume, sans rien déclencher)</div></div><select class="inp" id="veille">'+'<option value="0"'+(state.veille===0?' selected':'')+'>Jamais</option>'+'<option value="5"'+(state.veille===5?' selected':'')+'>5 min</option>'+'<option value="15"'+(state.veille===15?' selected':'')+'>15 min</option>'+'<option value="30"'+(state.veille===30?' selected':'')+'>30 min</option>'+'<option value="60"'+(state.veille===60?' selected':'')+'>1 h</option>'+'<option value="120"'+(state.veille===120?' selected':'')+'>2 h</option>'+'<option value="180"'+(state.veille===180?' selected':'')+'>3 h</option>'+'<option value="360"'+(state.veille===360?' selected':'')+'>6 h</option>'+'<option value="720"'+(state.veille===720?' selected':'')+'>12 h</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Pendant la veille</div><div class="d">Écran éteint (économie maximale), ou horloge affichée — avec la météo du bandeau si disponible. Un toucher réveille.</div></div><select class="inp" id="veilleMode">'+'<option value="off"'+((state.veilleMode||'off')==='off'?' selected':'')+'>Écran éteint</option>'+'<option value="clock"'+(state.veilleMode==='clock'?' selected':'')+'>Horloge</option>'+'<option value="meteo"'+(state.veilleMode==='meteo'?' selected':'')+'>Horloge + météo</option>'+'</select></div>'+
+    '<div class="setrow" id="veilleOffRow" style="'+(((state.veilleMode||'off')!=='off')?'':'display:none')+'"><div class="lft"><div class="t">Extinction totale après</div><div class="d">En mode horloge, éteint complètement la dalle après ce délai supplémentaire (économie maximale). Un toucher rallume.</div></div><select class="inp" id="veilleOff" style="max-width:160px">'+'<option value="0"'+((state.veilleOff||0)===0?' selected':'')+'>Jamais</option>'+'<option value="15"'+(state.veilleOff===15?' selected':'')+'>+ 15 min</option>'+'<option value="30"'+(state.veilleOff===30?' selected':'')+'>+ 30 min</option>'+'<option value="60"'+(state.veilleOff===60?' selected':'')+'>+ 1 h</option>'+'<option value="120"'+(state.veilleOff===120?' selected':'')+'>+ 2 h</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Taille du texte</div><div class="d">Agrandir ou réduire l\'affichage</div></div><div class="seg" id="segFont"><button data-fs="92">A−</button><button data-fs="100">A</button><button data-fs="108">A+</button><button data-fs="116">A++</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Rotation</div><div class="d">Orientation de l\'affichage</div></div><select class="inp" id="rotSel" style="max-width:150px"><option value="normal">Normale</option><option value="left">90° gauche</option><option value="right">90° droite</option><option value="inverted">180°</option></select></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Accueil</div>'+
-    '<div class="setrow"><div class="lft"><div class="t">Menu latéral</div><div class="d">Réaffiche le rail de catégories sur l\'accueil</div></div><div class="sw'+(state.railOn?' on':'')+'" id="railSw"></div></div>';
+    '<div class="setrow"><div class="lft"><div class="t">Menu latéral</div><div class="d">Réaffiche le rail de catégories sur l\'accueil</div></div><div class="sw'+(state.railOn?' on':'')+'" id="railSw"></div></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Affichage du menu</div><div class="d">Contenu des entrées du rail de catégories</div></div><select class="inp" id="railModeSel" style="max-width:200px"'+(state.railOn?'':' disabled')+'><option value="both"'+((state.railMode||'both')==='both'?' selected':'')+'>Icônes et textes</option><option value="icons"'+(state.railMode==='icons'?' selected':'')+'>Icônes seulement</option><option value="text"'+(state.railMode==='text'?' selected':'')+'>Textes seulement</option></select></div>';
   setcontent.innerHTML=h;
 
   /* --- thème --- */
@@ -2270,7 +2372,10 @@ function secApparence(){
     const j=await post('/api/system/rotation',{value:rot.value});
     toast(j.ok?'Rotation appliquée':('Impossible — '+(j.reason||'')));});
   const vmod=document.getElementById('veilleMode');
-  if(vmod)vmod.addEventListener('change',()=>{state.veilleMode=vmod.value;save();});
+  if(vmod)vmod.addEventListener('change',()=>{state.veilleMode=vmod.value;save();
+    const row=document.getElementById('veilleOffRow');if(row)row.style.display=(vmod.value!=='off')?'':'none';});
+  const voff=document.getElementById('veilleOff');
+  if(voff)voff.addEventListener('change',()=>{state.veilleOff=parseInt(voff.value)||0;save();});
   const vsel=document.getElementById('veille');
   if(vsel)vsel.addEventListener('change',async()=>{
     const mins=parseInt(vsel.value)||0;
@@ -2280,6 +2385,8 @@ function secApparence(){
 
   /* --- accueil --- */
   document.getElementById('railSw').addEventListener('click',()=>{state.railOn=!state.railOn;save();renderHome();secApparence();});
+  const rms=document.getElementById('railModeSel');
+  if(rms)rms.addEventListener('change',()=>{state.railMode=rms.value;save();renderHome();});
 }
 
 function secCategorie(){
@@ -2612,14 +2719,26 @@ function screenOff(){
       if(b&&d.getSeconds()===0)b.style.transform='translate('+(-50+(Math.random()*8-4))+'%,'+(-50+(Math.random()*8-4))+'%)';
     };
     upd();v._t=setInterval(upd,1000);
+    // 2e étape : après veilleOff minutes d'horloge, extinction TOTALE de la dalle
+    // (le voile reste pour capter le toucher ; l'horloge est masquée).
+    if((state.veilleOff||0)>0){
+      v._off=setTimeout(()=>{
+        const box=document.getElementById('veilBox');if(box)box.style.display='none';
+        if(v._t){clearInterval(v._t);v._t=null;}
+        fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:false})}).catch(()=>{});
+      },state.veilleOff*60000);
+    }
   }
   document.body.appendChild(v);
   if(mode==='off')fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:false})}).catch(()=>{});
 }
 function screenOn(){
   screenIsOff=false;
-  if((state.veilleMode||'off')==='off')fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:true})}).catch(()=>{});
-  const v=document.getElementById('veil');if(v){if(v._t)clearInterval(v._t);setTimeout(()=>v.remove(),150);}
+  const v=document.getElementById('veil');
+  // Rallumer la dalle si elle a été éteinte (mode 'off' direct, OU 2e étape atteinte).
+  const wasOff=(state.veilleMode||'off')==='off'||(v&&!v._t&&(state.veilleOff||0)>0);
+  if(wasOff)fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:true})}).catch(()=>{});
+  if(v){if(v._t)clearInterval(v._t);if(v._off)clearTimeout(v._off);setTimeout(()=>v.remove(),150);}
   resetIdle();
 }
 function resetIdle(){clearTimeout(idleT);clearTimeout(veilleT);if(state.autolock>0&&state.lockEnabled)idleT=setTimeout(doLogout,state.autolock*60000);if((state.veille||0)>0&&!screenIsOff)veilleT=setTimeout(screenOff,state.veille*60000);}
