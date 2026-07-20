@@ -160,6 +160,7 @@ entry = {
     "category": manifest.get("category", ""),
     "description": manifest.get("description", ""),
     "icon": icon,
+    "logo": logo,
     "color": color,
     "requires": manifest.get("requires", []),
     "changelog": changelog,
