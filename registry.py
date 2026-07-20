@@ -209,6 +209,7 @@ def tiles(registry):
                 "addon": aid,
                 "nm": t["name"],
                 "ic": t["icon"],
+                "logo": t.get("logo") or m.get("logo") or "",
                 "src": t.get("source", ""),
                 "cc": t.get("color", "#2dd4bf"),
                 "type": t.get("render", "generic"),
