@@ -105,10 +105,12 @@ function allCats(){
   const o={};
   Object.keys(CATS).forEach(c=>o[c]={i:(state.catIcons&&state.catIcons[c])||CATS[c].i,l:(state.catNames&&state.catNames[c])||CATS[c].l,c:(state.catColors&&state.catColors[c])||CATS[c].c,builtin:true});
   Object.entries(state.catCustom||{}).forEach(([id,v])=>o[id]={i:(v&&v.i)||'📁',l:(v&&v.l)||id,c:(v&&v.c)||'#888780',builtin:false});
+  o['_none']={i:'📦',l:'Sans catégorie',c:'#888780',builtin:true,pseudo:true};
   return o;
 }
 function catOf(id){
   const c=(state.appCat||{})[id];
+  if(c==='_none')return '_none';
   if(c&&(CATS[c]||(state.catCustom||{})[c]))return c;
   return BYID[id]?BYID[id].cat:'utils';
 }
@@ -1045,19 +1047,19 @@ function viewFor(a){
 /* ---------- SETTINGS DASHBOARD ---------- */
 const settings=document.getElementById('settings'),setnav=document.getElementById('setnav'),setcontent=document.getElementById('setcontent');
 const ALL_SECTIONS=[
-  ["sys","📈","Système"],
-  ["apps","🧩","Applications"],
-  ["reglages","🗂️","Réglages"],
-  ["apparence","🎨","Apparence"],
-  ["son","🔊","Son"],
-  ["categorie","🏷️","Catégories"],
-  ["sec","🔒","Sécurité"],
+  ["sys","📈","Système","#378add"],
+  ["apps","🧩","Applications","#534ab7"],
+  ["reglages","🗂️","Réglages","#888780"],
+  ["apparence","🎨","Apparence","#c98af0"],
+  ["son","🔊","Son","#e8a06a"],
+  ["categorie","🏷️","Catégories","#5ac8a8"],
+  ["sec","🔒","Sécurité","#e8635a"],
   ["--","",""],
-  ["minuteur","⏱️","Minuteur"],
-  ["wifi","📶","WiFi"],
-  ["bluetooth","🔵","Bluetooth"],
-  ["corbeille","🗑️","Corbeille"],
-  ["version","ℹ️","Version"]];
+  ["minuteur","⏱️","Minuteur","#f0b429"],
+  ["wifi","📶","WiFi","#378add"],
+  ["bluetooth","🔵","Bluetooth","#378add"],
+  ["corbeille","🗑️","Corbeille","#888780"],
+  ["version","ℹ️","Version","#7aa2f7"]];
 const SEC_REQUIRES={minuteur:['minuteur'],corbeille:['instagram','recettes']};
 function sections(){
   const inst=state.installed||[];
@@ -1374,9 +1376,9 @@ function renderSettings(){
   setnav.innerHTML='';
   const SECS=sections();
   if(!SECS.some(([id])=>id===curSec))curSec='apps';
-  SECS.forEach(([id,sic,l])=>{
+  SECS.forEach(([id,sic,l,scol])=>{
     if(id==='--'){const sp=document.createElement('div');sp.className='navsep';setnav.appendChild(sp);return;}
-    const el=document.createElement('div');el.className='item'+(id===curSec?' on':'');el.innerHTML='<span class="ico">'+ic(sic)+'</span>'+l+(id==='apps'?'<span class="navbadge" id="navAppsBadge" style="display:none"></span>':'');el.addEventListener('click',()=>{stopSysTimer();curSec=id;renderSettings();});setnav.appendChild(el);});
+    const el=document.createElement('div');el.className='item'+(id===curSec?' on':'');el.innerHTML='<span class="ico">'+ic(sic,id===curSec?null:scol)+'</span>'+l+(id==='apps'?'<span class="navbadge" id="navAppsBadge" style="display:none"></span>':'');el.addEventListener('click',()=>{stopSysTimer();curSec=id;renderSettings();});setnav.appendChild(el);});
   updateStoreBadges();
   if(curSec==='sys')secSys();
   else if(curSec==='apps')secApps();
@@ -2441,8 +2443,9 @@ function secApparence(){
 
 function secCategorie(){
   const A=allCats();
-  const order=sortedCats(Object.keys(A));
   const usage={};(state.installed||[]).forEach(id=>{const c=catOf(id);usage[c]=(usage[c]||0)+1;});
+  let order=sortedCats(Object.keys(A).filter(c=>c!=='_none'));
+  if(usage['_none'])order=order.concat(['_none']);
   let h='<h4>Catégories</h4><div class="desc">Organise les catégories du menu de l\'accueil : renomme-les, change l\'icône, réordonne-les, range tes applications.</div>';
   h+='<div id="catMgr"></div>';
   h+='<button class="btnpill install" id="catAdd" style="margin-top:12px">➕ Nouvelle catégorie</button>';
@@ -2454,16 +2457,18 @@ function secCategorie(){
   order.forEach((c,idx)=>{
     const info=A[c];const n=usage[c]||0;
     const hidden=(state.catHidden||[]).includes(c);
+    const isNone=(c==='_none');
     const row=document.createElement('div');row.className='catrow';
     row.innerHTML=
       '<span class="cri">'+ic(info.i,info.c)+'</span>'+
       '<span class="crn">'+info.l+(hidden?' <span class="crh">masquée</span>':'')+'</span>'+
       '<span class="crc">'+n+' app'+(n>1?'s':'')+'</span>'+
       '<span class="cra">'+
+        (isNone?'':(
         '<button class="crbtn" data-cup="'+c+'"'+(idx===0?' disabled':'')+' title="Monter">▲</button>'+
-        '<button class="crbtn" data-cdown="'+c+'"'+(idx===order.length-1?' disabled':'')+' title="Descendre">▼</button>'+
+        '<button class="crbtn" data-cdown="'+c+'"'+(idx===order.length-1||order[idx+1]==='_none'?' disabled':'')+' title="Descendre">▼</button>'+
         '<button class="crbtn" data-cedit="'+c+'" title="Éditer">✏️</button>'+
-        (info.builtin?'':'<button class="crbtn del" data-cdel="'+c+'" title="Supprimer">🗑️</button>')+
+        '<button class="crbtn del" data-cdel="'+c+'" title="Supprimer">🗑️</button>'))+
       '</span>';
     mgr.appendChild(row);
   });
@@ -2481,6 +2486,7 @@ function secCategorie(){
 }
 /* Édition complète d'une catégorie : nom + icône (+ affichage accueil). */
 function editCat(c){
+  if(c==='_none')return;
   const A=allCats();const info=A[c];if(!info)return;
   const ICONS=['📁','🏠','🌤️','🍽️','📅','🎬','🔧','📚','🌱','🎵','📸','🛰️','🔒','🛒','💡','⭐','🐾','☕','🎮','📊','🗂️','🏷️'];
   const CATCOLORS=['#888780','#378add','#5ac8a8','#639922','#f0b429','#e0892b','#e8a06a','#d85a30','#e8635a','#534ab7','#7aa2f7','#c98af0'];
@@ -2501,7 +2507,7 @@ function editCat(c){
         '<div class="ecapps">'+(state.installed||[]).map(id=>BYID[id]).filter(Boolean)
           .sort((x,y)=>dnm(x).localeCompare(dnm(y),'fr'))
           .map(ap=>'<div class="ecapp'+(catOf(ap.id)===c?' on':'')+'" data-eapp="'+ap.id+'">'+ic(ap.ic,ap.color)+' <span>'+dnm(ap)+'</span></div>').join('')+
-        '</div><div class="desc" style="margin-top:4px;color:var(--faint)">Touche une application pour l\'ajouter ici ou la rendre à sa catégorie d\'origine.</div></div>'+
+        '</div><div class="desc" style="margin-top:4px;color:var(--faint)">Touche une application pour l\'ajouter ici. Touche une application déjà ici pour la détacher (elle passe « Sans catégorie »).</div></div>'+
       '<button class="tprecb" id="ecSave" style="margin-top:14px">Enregistrer</button>'+
       '<button class="catclose" id="ecCancel">Annuler</button></div>';
     sh.querySelectorAll('[data-ic]').forEach(o=>o.addEventListener('click',()=>{cur.i=o.dataset.ic;document.getElementById('ecIcon').value=o.dataset.ic;sh.querySelectorAll('.ecico').forEach(e=>e.classList.toggle('on',e.dataset.ic===cur.i));}));
@@ -2511,9 +2517,8 @@ function editCat(c){
     document.getElementById('ecShow').addEventListener('click',e=>{cur.hidden=!cur.hidden;e.target.classList.toggle('on',!cur.hidden);});
     sh.querySelectorAll('[data-eapp]').forEach(el=>el.addEventListener('click',()=>{
       const id=el.dataset.eapp;state.appCat=state.appCat||{};
-      if(catOf(id)===c){ // rendre à la catégorie d'origine
-        if((BYID[id]&&BYID[id].cat)===c)return; // son origine EST cette catégorie : rien à rendre
-        delete state.appCat[id];
+      if(catOf(id)===c){ // déjà ici -> détacher vers « Sans catégorie »
+        state.appCat[id]='_none';
       } else state.appCat[id]=c;
       save();renderHome();el.classList.toggle('on',catOf(id)===c);
     }));
@@ -2538,18 +2543,26 @@ function editCat(c){
 /* Suppression avec migration des applications présentes. */
 function deleteCat(c){
   const A=allCats();
+  const builtin=!!CATS[c];
   const apps=(state.installed||[]).filter(id=>catOf(id)===c);
   const doDelete=()=>{
-    delete (state.catCustom||{})[c];
+    if(builtin){
+      // catégorie d'origine : on ne peut pas l'effacer du code -> on la masque
+      state.catHidden=state.catHidden||[];
+      if(!state.catHidden.includes(c))state.catHidden.push(c);
+    }else{
+      delete (state.catCustom||{})[c];
+    }
     Object.keys(state.appCat||{}).forEach(id=>{if(state.appCat[id]===c)delete state.appCat[id];});
     state.catOrder=(state.catOrder||[]).filter(x=>x!==c);
     save();renderHome();secCategorie();};
-  if(!apps.length){doDelete();toast('Catégorie supprimée');return;}
-  const others=sortedCats(Object.keys(A)).filter(x=>x!==c);
+  if(!apps.length){doDelete();toast(builtin?'Catégorie masquée':'Catégorie supprimée');return;}
+  // destinations : autres catégories réelles + « Sans catégorie »
+  const dests=sortedCats(Object.keys(A).filter(x=>x!==c&&x!=='_none')).concat(['_none']);
   const sh=document.createElement('div');sh.className='evsheet';
   sh.innerHTML='<div class="evbox" style="width:470px"><div class="evtitle">🗑️ Supprimer « '+A[c].l+' »</div>'+
     '<div class="desc" style="margin:6px 0 10px">'+apps.length+' application'+(apps.length>1?'s':'')+' ('+apps.map(id=>dnm(BYID[id]||{id:id,nm:id})).join(', ')+') — vers quelle catégorie les déplacer ?</div>'+
-    '<div style="max-height:300px;overflow:auto">'+others.map(x=>'<div class="catopt" data-mig="'+x+'" style="min-height:48px">'+A[x].i+' '+A[x].l+'</div>').join('')+'</div>'+
+    '<div style="max-height:300px;overflow:auto">'+dests.map(x=>'<div class="catopt" data-mig="'+x+'" style="min-height:48px">'+ic(A[x].i,A[x].c)+' '+A[x].l+'</div>').join('')+'</div>'+
     '<button class="catclose" id="dcCancel">Annuler</button></div>';
   document.body.appendChild(sh);
   const close=()=>sh.remove();
