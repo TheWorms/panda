@@ -124,7 +124,7 @@
   .row .ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;background:var(--tile);border:1px solid var(--border-soft);flex:none}
   .row .meta{flex:1;min-width:0}.row .meta .n{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
   .row .meta .s{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .updbadge{font-size:10px;font-weight:700;color:#111;background:var(--warn);padding:2px 7px;border-radius:10px}
+  .updbadge{font-size:10.5px;font-weight:800;color:#111;background:var(--warn);padding:3px 9px;border-radius:10px;letter-spacing:.02em}
   .sw{width:44px;height:25px;border-radius:20px;background:var(--tile-2);border:1px solid var(--border);position:relative;cursor:pointer;flex:none}
   .sw::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:var(--faint);transition:.15s}
   .sw.on{background:var(--accent-tint);border-color:var(--accent-dim)}.sw.on::after{left:21px;background:var(--accent)}
@@ -205,8 +205,13 @@
   .appcard .cacts{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:2px}
   .appcard .cacts .btnpill{margin-left:auto}
   .okbadge{font-size:10px;font-weight:700;color:var(--green);background:rgba(47,174,98,.14);padding:2px 7px;border-radius:10px}
-  .newbadge{font-size:10px;font-weight:700;color:var(--green);background:rgba(47,174,98,.18);padding:2px 7px;border-radius:10px}
-  .instbadge{font-size:10px;font-weight:600;color:var(--dim);background:rgba(138,148,160,.14);padding:2px 7px;border-radius:10px}
+  .newbadge{font-size:10.5px;font-weight:800;color:var(--green);background:rgba(47,174,98,.2);padding:3px 9px;border-radius:10px;letter-spacing:.02em}
+  .adbadge{display:inline-block;font-size:12px;font-weight:800;padding:4px 12px;border-radius:12px;margin-left:10px;vertical-align:middle;letter-spacing:.03em}
+  .adbadge.maj{color:#111;background:var(--warn)}
+  .adbadge.new{color:#fff;background:var(--green)}
+  .adbadge.inst{color:var(--dim);background:rgba(138,148,160,.16)}
+  .adbadge.inc{color:#fff;background:var(--bad)}
+  .instbadge{font-size:10px;font-weight:600;color:var(--dim);background:rgba(138,148,160,.14);padding:2px 8px;border-radius:10px}
   .storesec{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);margin:14px 2px 4px}
   .storesec:first-child{margin-top:2px}
   .storesec .scnt{background:var(--bg);border:1px solid var(--border-soft);border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;color:var(--text)}
