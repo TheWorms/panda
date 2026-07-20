@@ -1,5 +1,5 @@
 const CATS={
-  systeme:{i:'⚙️',l:'Système'},maison:{l:"Maison",i:"🏠"},cuisine:{l:"Cuisine",i:"🍳"},meteo:{l:"Météo",i:"🌤️"},agenda:{l:"Agenda",i:"📆"},media:{l:"Média",i:"▶️"},docs:{l:"Docs",i:"📁"},jardin:{l:"Jardin",i:"🌱"},transport:{l:"Transport",i:"🚆"},infra:{l:"Infra",i:"🖥️"},utils:{l:"Utils",i:"🧰"}};
+  systeme:{i:'⚙️',l:'Système',c:'#888780'},maison:{l:"Maison",i:"🏠",c:'#378add'},cuisine:{l:"Cuisine",i:"🍳",c:'#e8a06a'},meteo:{l:"Météo",i:"🌤️",c:'#f0b429'},agenda:{l:"Agenda",i:"📆",c:'#7aa2f7'},media:{l:"Média",i:"▶️",c:'#534ab7'},docs:{l:"Docs",i:"📁",c:'#639922'},jardin:{l:"Jardin",i:"🌱",c:'#5ac8a8'},transport:{l:"Transport",i:"🚆",c:'#378add'},infra:{l:"Infra",i:"🖥️",c:'#e0892b'},utils:{l:"Utils",i:"🧰",c:'#888780'}};
 /* Catalogue d'addons — plus rien en dur : tout vient du registre serveur
    (/api/registry), chargé par loadRegistry() avant la première lecture de BYID. */
 let ADDONS=[],BYID={},CFG_DOC={},CFG_SCHEMA={},DEF=[],REGISTRY_ERRORS={};
@@ -54,7 +54,7 @@ function sanitize(){
 let pushT;
 function save(){
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,veilleMode:state.veilleMode,veilleOff:state.veilleOff,font:state.font})}).catch(()=>{});},250);
+  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,veilleMode:state.veilleMode,veilleOff:state.veilleOff,font:state.font})}).catch(()=>{});},250);
 }
 async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){Object.assign(state,await r.json());sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
@@ -102,8 +102,8 @@ function catRank(c){
 function sortedCats(cats){return cats.slice().sort((a,b)=>catRank(a)-catRank(b));}
 function allCats(){
   const o={};
-  Object.keys(CATS).forEach(c=>o[c]={i:CATS[c].i,l:(state.catNames&&state.catNames[c])||CATS[c].l,builtin:true});
-  Object.entries(state.catCustom||{}).forEach(([id,v])=>o[id]={i:(v&&v.i)||'📁',l:(v&&v.l)||id,builtin:false});
+  Object.keys(CATS).forEach(c=>o[c]={i:(state.catIcons&&state.catIcons[c])||CATS[c].i,l:(state.catNames&&state.catNames[c])||CATS[c].l,c:(state.catColors&&state.catColors[c])||CATS[c].c,builtin:true});
+  Object.entries(state.catCustom||{}).forEach(([id,v])=>o[id]={i:(v&&v.i)||'📁',l:(v&&v.l)||id,c:(v&&v.c)||'#888780',builtin:false});
   return o;
 }
 function catOf(id){
@@ -124,7 +124,7 @@ function renderHome(){
     if(!railCat||!cats.includes(railCat))railCat=cats[0];
     home.innerHTML='<nav class="railv m-'+(state.railMode||'both')+'" id="railv"></nav><div class="homecol"><div class="grid narrow" id="grid"></div></div>';
     const rv=document.getElementById('railv');
-    cats.forEach(c=>{const el=document.createElement('div');el.className='cat'+(c===railCat?' on':'');const A=allCats();el.innerHTML='<span class="cico">'+ic((A[c]||{i:'📁'}).i)+'</span><span class="ctxt">'+(A[c]||{l:c}).l+'</span>';if((state.railMode||'both')==='icons')el.title=(A[c]||{l:c}).l;el.addEventListener('click',()=>{railCat=c;renderHome();});rv.appendChild(el);});
+    cats.forEach(c=>{const el=document.createElement('div');el.className='cat'+(c===railCat?' on':'');const A=allCats();const ci=A[c]||{i:'📁'};el.innerHTML='<span class="cico">'+ic(ci.i,c===railCat?null:ci.c)+'</span><span class="ctxt">'+(A[c]||{l:c}).l+'</span>';if((state.railMode||'both')==='icons')el.title=(A[c]||{l:c}).l;el.addEventListener('click',()=>{railCat=c;renderHome();});rv.appendChild(el);});
     gridEl=document.getElementById('grid');
     fillGrid(ids.filter(id=>catOf(id)===railCat),false);
   }else{
@@ -2461,7 +2461,7 @@ function secCategorie(){
     const hidden=(state.catHidden||[]).includes(c);
     const row=document.createElement('div');row.className='catrow';
     row.innerHTML=
-      '<span class="cri">'+info.i+'</span>'+
+      '<span class="cri">'+ic(info.i,info.c)+'</span>'+
       '<span class="crn">'+info.l+(hidden?' <span class="crh">masquée</span>':'')+'</span>'+
       '<span class="crc">'+n+' app'+(n>1?'s':'')+'</span>'+
       '<span class="cra">'+
@@ -2488,15 +2488,18 @@ function secCategorie(){
 function editCat(c){
   const A=allCats();const info=A[c];if(!info)return;
   const ICONS=['📁','🏠','🌤️','🍽️','📅','🎬','🔧','📚','🌱','🎵','📸','🛰️','🔒','🛒','💡','⭐','🐾','☕','🎮','📊','🗂️','🏷️'];
+  const CATCOLORS=['#888780','#378add','#5ac8a8','#639922','#f0b429','#e0892b','#e8a06a','#d85a30','#e8635a','#534ab7','#7aa2f7','#c98af0'];
   const sh=document.createElement('div');sh.className='evsheet';
-  const cur={i:info.i,l:info.l,hidden:(state.catHidden||[]).includes(c)};
+  const cur={i:info.i,l:info.l,c:info.c||'#888780',hidden:(state.catHidden||[]).includes(c)};
   const render=()=>{
     sh.innerHTML='<div class="evbox" style="width:480px"><div class="evtitle">✏️ Éditer la catégorie</div>'+
       '<div class="cfgf" style="margin-top:6px"><span>Nom</span>'+
         '<input class="inp" id="ecName" value="'+cur.l.replace(/"/g,'&quot;')+'" '+(info.builtin?'':'')+'></div>'+
       '<div class="cfgf" style="margin-top:12px"><span>Icône</span>'+
-        '<div class="eciconrow">'+ICONS.map(x=>'<span class="ecico'+(x===cur.i?' on':'')+'" data-ic="'+x+'">'+x+'</span>').join('')+'</div>'+
+        '<div class="eciconrow">'+ICONS.map(x=>'<span class="ecico'+(x===cur.i?' on':'')+'" data-ic="'+x+'" style="color:'+(cur.c||'#888780')+'">'+ic(x,cur.c)+'</span>').join('')+'</div>'+
         '<input class="inp" id="ecIcon" value="'+cur.i+'" maxlength="4" style="margin-top:8px;text-align:center;font-size:20px;max-width:90px" placeholder="ou colle un emoji"></div>'+
+      '<div class="cfgf" style="margin-top:12px"><span>Couleur</span>'+
+        '<div class="eccolrow">'+CATCOLORS.map(col=>'<span class="eccol'+(col===cur.c?' on':'')+'" data-col="'+col+'" style="background:'+col+'"></span>').join('')+'</div></div>'+
       '<div class="setrow" style="margin-top:12px"><div class="lft"><div class="t">Afficher sur l\'accueil</div><div class="d">Masque la catégorie sans la supprimer</div></div><div class="sw'+(cur.hidden?'':' on')+'" id="ecShow"></div></div>'+
       (info.builtin?'<div class="desc" style="margin-top:8px;color:var(--faint)">Catégorie d\'origine : renommable et personnalisable, mais non supprimable.</div>':'')+
       '<div class="cfgf" style="margin-top:14px"><span>Applications dans cette catégorie</span>'+
@@ -2507,6 +2510,7 @@ function editCat(c){
       '<button class="tprecb" id="ecSave" style="margin-top:14px">Enregistrer</button>'+
       '<button class="catclose" id="ecCancel">Annuler</button></div>';
     sh.querySelectorAll('[data-ic]').forEach(o=>o.addEventListener('click',()=>{cur.i=o.dataset.ic;document.getElementById('ecIcon').value=o.dataset.ic;sh.querySelectorAll('.ecico').forEach(e=>e.classList.toggle('on',e.dataset.ic===cur.i));}));
+    sh.querySelectorAll('[data-col]').forEach(o=>o.addEventListener('click',()=>{cur.c=o.dataset.col;sh.querySelectorAll('.eccol').forEach(e=>e.classList.toggle('on',e.dataset.col===cur.c));sh.querySelectorAll('.ecico').forEach(e=>{e.style.color=cur.c;const em=e.getAttribute('data-ic');e.innerHTML=ic(em,cur.c);});}));
     document.getElementById('ecIcon').addEventListener('input',e=>{cur.i=e.target.value.trim()||'📁';sh.querySelectorAll('.ecico').forEach(el=>el.classList.toggle('on',el.dataset.ic===cur.i));});
     document.getElementById('ecName').addEventListener('input',e=>cur.l=e.target.value);
     document.getElementById('ecShow').addEventListener('click',e=>{cur.hidden=!cur.hidden;e.target.classList.toggle('on',!cur.hidden);});
@@ -2520,10 +2524,14 @@ function editCat(c){
     }));
     document.getElementById('ecCancel').addEventListener('click',()=>sh.remove());
     document.getElementById('ecSave').addEventListener('click',()=>{
-      const nom=(cur.l||'').trim()||'Catégorie';const icone=(cur.i||'📁').trim()||'📁';
-      state.catNames=state.catNames||{};state.catCustom=state.catCustom||{};
-      if(CATS[c]){ if(nom!==CATS[c].l)state.catNames[c]=nom; else delete state.catNames[c]; }
-      else { state.catCustom[c]=state.catCustom[c]||{}; state.catCustom[c].l=nom; state.catCustom[c].i=icone; }
+      const nom=(cur.l||'').trim()||'Catégorie';const icone=(cur.i||'📁').trim()||'📁';const coul=(cur.c||'#888780');
+      state.catNames=state.catNames||{};state.catCustom=state.catCustom||{};state.catColors=state.catColors||{};state.catIcons=state.catIcons||{};
+      if(CATS[c]){
+        if(nom!==CATS[c].l)state.catNames[c]=nom; else delete state.catNames[c];
+        if(coul!==CATS[c].c)state.catColors[c]=coul; else delete state.catColors[c];
+        if(icone!==CATS[c].i)state.catIcons[c]=icone; else delete state.catIcons[c];
+      }
+      else { state.catCustom[c]=state.catCustom[c]||{}; state.catCustom[c].l=nom; state.catCustom[c].i=icone; state.catCustom[c].c=coul; }
       state.catHidden=state.catHidden||[];
       const hi=state.catHidden.indexOf(c);
       if(cur.hidden&&hi<0)state.catHidden.push(c); else if(!cur.hidden&&hi>=0)state.catHidden.splice(hi,1);
