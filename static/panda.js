@@ -1751,6 +1751,11 @@ function secVersion(){
   setcontent.innerHTML='<h4>Version</h4>'+
     '<div class="setrow"><div class="lft"><div class="t">Kiosk « '+KIOSK_NAME+' »</div>'+
     '<div class="d">Version <span id="verV">…</span> · SDK addons kiosk_api <span id="verApi">…</span></div></div></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Mise à jour de Panda</div>'+
+    '<div class="d" id="selfupdMsg">Vérification…</div></div>'+
+    '<div style="display:flex;gap:9px;align-items:center">'+
+    '<button class="btnpill install" id="selfupdBtn" style="display:none">⬆ Mettre à jour</button>'+
+    '<button class="btnpill" id="selfupdCheck">⟳ Vérifier</button></div></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Crédits</div>'+
     '<div class="credits">'+
     '<p><b>Panda</b> — kiosk domestique pour écran tactile, conçu par The Worm\'s.</p>'+
@@ -1771,6 +1776,35 @@ function secVersion(){
     const el=document.getElementById('verSocle');if(!el)return;
     const socle=(j.tiles||[]).filter(t=>t.source!=='store'&&t.type!=='internal').map(t=>t.nm||t.id);
     el.textContent=socle.length?Array.from(new Set(socle)).sort((a,b)=>a.localeCompare(b,'fr')).join(', '):'—';}).catch(()=>{});
+  const _updMsg=document.getElementById('selfupdMsg'),_updBtn=document.getElementById('selfupdBtn'),_updChk=document.getElementById('selfupdCheck');
+  async function selfupdCheck(){
+    if(_updMsg){_updMsg.textContent='Vérification…';_updMsg.style.color='';}
+    if(_updBtn)_updBtn.style.display='none';
+    try{
+      const r=await fetch('/api/system/selfupdate');const d=await r.json();
+      if(!_updMsg)return;
+      if(!d.ok){_updMsg.textContent='⚠ '+(d.reason||'vérification impossible');_updMsg.style.color='var(--warn)';return;}
+      if(d.update){
+        _updMsg.innerHTML='<span class="adbadge maj" style="margin-left:0">⬆ MISE À JOUR</span> v'+d.current+' → <b>v'+d.latest+'</b>'+(d.updater_ready?'':' · <span style="color:var(--warn)">outil panda-update absent sur la machine</span>');
+        if(_updBtn&&d.updater_ready)_updBtn.style.display='';
+      }else{
+        _updMsg.textContent='✓ Panda est à jour (v'+d.current+')';_updMsg.style.color='var(--green)';
+      }
+    }catch(e){if(_updMsg){_updMsg.textContent='⚠ vérification impossible';_updMsg.style.color='var(--warn)';}}
+  }
+  if(_updChk)_updChk.addEventListener('click',selfupdCheck);
+  if(_updBtn)_updBtn.addEventListener('click',async()=>{
+    if(!confirm('Mettre à jour Panda maintenant ? Le kiosk va redémarrer.'))return;
+    _updBtn.disabled=true;_updBtn.textContent='Mise à jour…';
+    try{
+      const r=await fetch('/api/system/selfupdate',{method:'POST'});const d=await r.json();
+      if(d.ok){if(_updMsg){_updMsg.textContent='⏳ '+(d.msg||'Mise à jour en cours — le kiosk redémarre…');_updMsg.style.color='';}
+        // recharge la page quand le service revient
+        setTimeout(function poll(){fetch('/healthz').then(r=>r.json()).then(()=>location.reload()).catch(()=>setTimeout(poll,3000));},8000);
+      }else{if(_updMsg){_updMsg.textContent='✗ '+(d.reason||'échec');_updMsg.style.color='var(--bad)';}_updBtn.disabled=false;_updBtn.textContent='⬆ Mettre à jour';}
+    }catch(e){if(_updMsg){_updMsg.textContent='✗ échec du lancement';_updMsg.style.color='var(--bad)';}_updBtn.disabled=false;_updBtn.textContent='⬆ Mettre à jour';}
+  });
+  selfupdCheck();
 }
 function secApps(){
   const tabs=[["myapps","Mes applications",state.installed.length],["store","Store",""]];
@@ -1946,10 +1980,17 @@ function storeItemNode(a){
   return el;
 }
 function storeBadge(a){
-  if(a.status==='maj')return ' <span class="updbadge">⬆ MAJ '+a.installed_version+'→'+a.version+'</span>';
-  if(a.status==='installe')return ' <span class="instbadge">✓ installé</span>';
+  if(a.status==='maj')return ' <span class="updbadge">⬆ MISE À JOUR '+a.installed_version+' → '+a.version+'</span>';
+  if(a.status==='installe')return ' <span class="instbadge">✓ à jour</span>';
   if(a.status==='incompatible')return ' <span class="warnbadge">incompatible</span>';
-  if(a.status==='disponible')return ' <span class="newbadge">✨ nouveau</span>';
+  if(a.status==='disponible')return ' <span class="newbadge">✨ NOUVEAU</span>';
+  return '';
+}
+function detailBadge(a){
+  if(a.status==='maj')return ' <span class="adbadge maj">⬆ MISE À JOUR</span>';
+  if(a.status==='disponible')return ' <span class="adbadge new">✨ NOUVEAU</span>';
+  if(a.status==='installe')return ' <span class="adbadge inst">✓ à jour</span>';
+  if(a.status==='incompatible')return ' <span class="adbadge inc">⚠ incompatible</span>';
   return '';
 }
 function storeActionNode(a){
@@ -1978,7 +2019,7 @@ function openAddonDetail(a){
     '<div class="adBody">'+
       '<div class="adHead"><div class="adIco">'+ic(icoName,icoCol)+'</div>'+
         '<div class="adHtx"><div class="adCat">'+esc(a.category||'—')+'</div>'+
-          '<div class="adNm">'+esc(a.name||a.id)+'</div><div class="adSub">'+sub+'</div></div>'+
+          '<div class="adNm">'+esc(a.name||a.id)+detailBadge(a)+'</div><div class="adSub">'+sub+'</div></div>'+
         '<div class="adCta" id="adCta"></div></div>'+
       (a.description?'<div class="adDesc">'+esc(a.description)+'</div>':'')+
       '<div class="adGrid">'+
