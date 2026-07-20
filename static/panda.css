@@ -938,3 +938,9 @@
 .syrow{padding:14px 12px;gap:14px}
 .syrow .syn{font-size:15px}
 .syrow .sysub{font-size:12.5px}
+
+/* Sélecteur de couleur de catégorie */
+.eccolrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.eccol{width:30px;height:30px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.eccol.on{border-color:var(--fg);transform:scale(1.12)}
+.eccol:active{transform:scale(.95)}

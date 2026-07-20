@@ -49,7 +49,7 @@ DEFAULT_STORE_URL = "https://raw.githubusercontent.com/TheWorms/abeille/main/"
 # du code (accès root) peut changer la racine de confiance du mode officiel.
 STORE_OFFICIAL_PUBKEY = "8naRKWwUoxagk+OHZ9IdXGPcmsZGmmQo79BZXCEwa4c="
 ALLOWED_KEYS = {"installed", "hidden", "order", "railOn", "connBar", "theme", "ntp",
-                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "veilleOff", "font", "railMode", "timerDisplay"}
+                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "catColors", "catIcons", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "veilleOff", "font", "railMode", "timerDisplay"}
 import registry as _registry
 
 _REGISTRY, _REGISTRY_ERRORS = _registry.load()
