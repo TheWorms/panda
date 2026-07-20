@@ -799,14 +799,18 @@ function _auiBackground(){
 /* Charge le ui.js d'un addon (une fois par session) et resout son module.
    Reutilise par la vue (loadAddonUI) et par le \u2699 (hook configPanel). */
 const _auiPending={};
+const _auiVer={};
 function _auiLoad(aid,entry,ver){
   const mod=()=>(window.PandaAddons||{})[aid];
-  if(mod())return Promise.resolve(mod());
+  // Reutilise le module en memoire UNIQUEMENT si la version chargee correspond.
+  // Sinon (mise a jour de l'addon), on evacue l'ancien module et on recharge le ui.js.
+  if(mod()&&_auiVer[aid]===(ver||'0'))return Promise.resolve(mod());
+  if(mod()&&_auiVer[aid]!==(ver||'0')){try{delete window.PandaAddons[aid];}catch(e){}}
   if(_auiPending[aid])return _auiPending[aid];
   _auiPending[aid]=new Promise(res=>{
     const s=document.createElement('script');
     s.src='/addons/'+encodeURIComponent(aid)+'/ui/'+encodeURIComponent(entry)+'?v='+encodeURIComponent(ver||'0');
-    s.onload=()=>{delete _auiPending[aid];res(mod()||null);};
+    s.onload=()=>{delete _auiPending[aid];_auiVer[aid]=(ver||'0');res(mod()||null);};
     s.onerror=()=>{delete _auiPending[aid];res(null);};
     document.head.appendChild(s);
   });
