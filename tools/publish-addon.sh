@@ -143,6 +143,7 @@ if src_cl.is_file():
 tile0 = (manifest.get("tiles") or [{}])[0]
 icon = tile0.get("icon", "📦")
 color = tile0.get("color", "#2dd4bf")
+logo = manifest.get("logo") or tile0.get("logo") or ""
 
 # index.json : réécrit en entier, entrée de l'addon remplacée
 index_path = store / "index.json"
