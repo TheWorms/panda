@@ -879,6 +879,7 @@ def _cross_index(index):
             "requires": a.get("requires", []),
             "size": a.get("size"),
             "icon": a.get("icon", ""),
+            "logo": a.get("logo", ""),
             "color": a.get("color", ""),
             "changelog": a.get("changelog", ""),
             "status": status,

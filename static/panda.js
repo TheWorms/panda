@@ -192,7 +192,7 @@ async function loadDeclView(a){
     (d&&d.open_url?'<button class="lgbtn" id="dcOpen" style="margin:0;padding:9px 18px;font-size:14px">Ouvrir \u2197</button>':'')+
     '<button class="wch" id="dcRefresh">\u21bb Rafraîchir</button></div>';
   if(!d||!d.ok){
-    h+='<div class="stub"><div class="big">'+ic(a.ic,a.color)+'</div><div class="t1">'+dnm(a)+'</div><div class="t2">'+((d&&d.reason)||'')+'</div></div>';
+    h+='<div class="stub"><div class="big">'+tileIcon(a)+'</div><div class="t1">'+dnm(a)+'</div><div class="t2">'+((d&&d.reason)||'')+'</div></div>';
   }else{
     const data=d.data||{};
     for(const v of (d.view||[])){
@@ -246,7 +246,7 @@ function openAddon(id){
   // Le navigateur ouvre DIRECTEMENT une 2e instance Chromium (avec sa propre
   // barre d'URL) : pas de page intermédiaire. Fermer Chromium ramène à l'accueil.
   if(a.id==='navigateur'){openBrowserDirect(a);return;}
-  document.getElementById('ovTitle').innerHTML=ic(a.ic,a.color)+' '+dnm(a);
+  document.getElementById('ovTitle').innerHTML=tileIcon(a)+' '+dnm(a);
   document.getElementById('ovSrc').textContent=(a.id==='meteo')?'':a.src;
   document.getElementById('ovBody').innerHTML=viewFor(a);
   if(a.ui){loadAddonView(a);}
@@ -1038,7 +1038,7 @@ function viewFor(a){
   if(a.type==='igvideo')return '<div class="stub"><div class="big">📸</div><div class="t1">Instagram — lecteur</div><div class="t2">Vidéos enregistrées filtrées par <b>collection / label</b>, bascule Vidéos/Photos, pellicule de miniatures. Source : <code>instaloader :saved</code>.</div></div>';
   if(a.id==='navigateur')return '<div id="brBody" class="browser"><div class="lghint" style="padding:40px">Chargement du navigateur…</div></div>';
   if(a.type==='iframe'||a.type==='browser')return '<div id="launchBody" class="launch"><div class="lghint">Chargement…</div></div>';
-  return '<div class="stub"><div class="big">'+ic(a.ic,a.color)+'</div><div class="t1">'+a.nm+'</div><div class="t2">Vue native (rendu Flask via <code>'+a.src+'</code>).</div></div>';
+  return '<div class="stub"><div class="big">'+tileIcon(a)+'</div><div class="t1">'+a.nm+'</div><div class="t2">Vue native (rendu Flask via <code>'+a.src+'</code>).</div></div>';
 }
 
 /* ---------- SETTINGS DASHBOARD ---------- */
@@ -1156,7 +1156,7 @@ document.getElementById('closeSet').addEventListener('click',()=>closeSettings()
 const cfgView=document.getElementById('cfgView');
 document.getElementById('cfgBack').addEventListener('click',()=>cfgView.classList.remove('show'));
 async function openCfg(a){
-  document.getElementById('cfgTitle').innerHTML=ic(a.ic,a.color)+' Réglages — '+dnm(a);
+  document.getElementById('cfgTitle').innerHTML=tileIcon(a)+' Réglages — '+dnm(a);
   const body=document.getElementById('cfgBody');
   const fields=CFG_SCHEMA[a.id]||[];
   let vals={};
@@ -1884,12 +1884,12 @@ function renderMyApps(box){
     let el,acts;
     if(appView==='cards'){
       el=document.createElement('div');el.className='appcard';
-      el.innerHTML='<div class="apptop"><div class="cic">'+ic(a.ic,a.color)+'</div><div class="ctt">'+dnm(a)+(a.update?' <span class="updbadge">MAJ</span>':'')+'</div></div>'+
+      el.innerHTML='<div class="apptop"><div class="cic">'+tileIcon(a)+'</div><div class="ctt">'+dnm(a)+(a.update?' <span class="updbadge">MAJ</span>':'')+'</div></div>'+
         '<div class="cmeta">'+meta+'</div>';
       acts=document.createElement('div');acts.className='cacts';
     }else{
       el=document.createElement('div');el.className='approw';
-      el.innerHTML='<div class="rico">'+ic(a.ic,a.color)+'</div>'+
+      el.innerHTML='<div class="rico">'+tileIcon(a)+'</div>'+
         '<div class="rtx"><div class="rnm">'+dnm(a)+(a.update?' <span class="updbadge">MAJ</span>':'')+'</div><div class="rmeta">'+meta+'</div></div>';
       acts=document.createElement('div');acts.className='racts';
     }
@@ -1969,17 +1969,19 @@ function storeItemNode(a){
   const by=BYID[a.id];
   const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'');
   const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?by.color:'#f0b429');
+  const _logo=a.logo||(by?by.logo:'');
+  const _ico=_logo?('<img class="tilogo" src="/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_logo)+'?v='+encodeURIComponent(a.version||(by?by.ver:'')||'0')+'" alt="" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(icoName,icoCol).replace(/"/g,'&quot;')+'">'):ic(icoName,icoCol);
   const dim=(a.status==='installe'||a.status==='incompatible')?' dimmed':'';
   let el,acts;
   if(appView==='cards'){
     el=document.createElement('div');el.className='appcard st-'+a.status+dim+(a.status==='incompatible'?' off':'');
-    el.innerHTML='<div class="apptop"><div class="cic">'+ic(icoName,icoCol)+'</div>'+
+    el.innerHTML='<div class="apptop"><div class="cic">'+_ico+'</div>'+
       '<div class="ctt">'+(a.name||a.id)+storeBadge(a)+'</div></div>'+
       '<div class="cmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+'</div>';
     acts=document.createElement('div');acts.className='cacts';
   }else{
     el=document.createElement('div');el.className='approw st-'+a.status+dim+(a.status==='incompatible'?' off':'');
-    el.innerHTML='<div class="rico">'+ic(icoName,icoCol)+'</div>'+
+    el.innerHTML='<div class="rico">'+_ico+'</div>'+
       '<div class="rtx"><div class="rnm">'+(a.name||a.id)+storeBadge(a)+'</div>'+
       '<div class="rmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+(a.description?(' · '+a.description):'')+'</div></div>';
     acts=document.createElement('div');acts.className='racts';
@@ -2015,6 +2017,8 @@ function openAddonDetail(a){
   const by=BYID[a.id];
   const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'—');
   const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?by.color:'#f0b429');
+  const _dlogo=a.logo||(by?by.logo:'');
+  const _dico=_dlogo?('<img class="tilogo" src="/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_dlogo)+'?v='+encodeURIComponent(a.version||(by?by.ver:'')||'0')+'" alt="" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(icoName,icoCol).replace(/"/g,'&quot;')+'">'):ic(icoName,icoCol);
   const sub=a.status==='installe'?('Installé · source '+(a.source||'store'))
     :a.status==='incompatible'?'Non compatible avec ce Panda'
     :a.status==='maj'?('Mise à jour disponible · v'+a.installed_version+' → v'+a.version)
@@ -2027,7 +2031,7 @@ function openAddonDetail(a){
   ov.innerHTML='<div class="adTop"><button class="adBack">‹ Retour</button>'+
       '<span class="cmeta">'+(a.category?esc(a.category)+' · ':'')+'Store</span></div>'+
     '<div class="adBody">'+
-      '<div class="adHead"><div class="adIco">'+ic(icoName,icoCol)+'</div>'+
+      '<div class="adHead"><div class="adIco">'+_dico+'</div>'+
         '<div class="adHtx"><div class="adCat">'+esc(a.category||'—')+'</div>'+
           '<div class="adNm">'+esc(a.name||a.id)+detailBadge(a)+'</div><div class="adSub">'+sub+'</div></div>'+
         '<div class="adCta" id="adCta"></div></div>'+
