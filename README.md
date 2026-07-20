@@ -1,5 +1,9 @@
 # 🐼 Panda — kiosk domestique pour écran tactile
 
+<p align="center">
+  <img src="splash-panda/images/04_mange_01.png" width="420" alt="Panda — écran de démarrage">
+</p>
+
 Panda transforme un Raspberry Pi et un écran tactile en **tableau de bord
 mural pour la maison** : météo et vigilance, agenda, minuteurs de cuisine,
 radios et musique, courses et repas, phases de lune, transports, domotique…
@@ -12,6 +16,7 @@ aux services que vous configurez.
 - Écran **1024×600**, Chromium plein écran via **labwc** (Wayland) + Squeekboard
 - **SDK d'addons** stable (`kiosk_api 1.x`) : les applications s'installent,
   se mettent à jour et se développent sans toucher au socle
+- **Interface tout en icônes vectorielles** : chaque tuile porte le **logo officiel** de son application (SVG embarqué, net à toute taille et disponible hors-ligne) ; le reste de l'interface utilise les icônes **[Tabler](https://tabler.io/icons)** pour un rendu cohérent, sans emoji.
 
 ---
 
