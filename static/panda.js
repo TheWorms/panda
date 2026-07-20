@@ -2444,19 +2444,24 @@ function secApparence(){
 function secCategorie(){
   const A=allCats();
   const usage={};(state.installed||[]).forEach(id=>{const c=catOf(id);usage[c]=(usage[c]||0)+1;});
+  const hiddenSet=(state.catHidden||[]);
   let order=sortedCats(Object.keys(A).filter(c=>c!=='_none'));
   if(usage['_none'])order=order.concat(['_none']);
+  const visibles=order.filter(c=>!hiddenSet.includes(c));
+  const masquees=order.filter(c=>hiddenSet.includes(c));
   let h='<h4>Catégories</h4><div class="desc">Organise les catégories du menu de l\'accueil : renomme-les, change l\'icône, réordonne-les, range tes applications.</div>';
   h+='<div id="catMgr"></div>';
   h+='<button class="btnpill install" id="catAdd" style="margin-top:12px">➕ Nouvelle catégorie</button>';
+  if(masquees.length){
+    h+='<div class="cathdrow" id="catHidToggle" style="margin-top:20px"><span class="cathchevron" id="catHidChev">▸</span> Catégories masquées <span class="crc">'+masquees.length+'</span></div>';
+    h+='<div id="catHidList" style="display:none"></div>';
+  }
 
   setcontent.innerHTML=h;
 
-  /* ---- liste des catégories : nom + compteur + actions (éditer/suppr/monter/descendre) ---- */
-  const mgr=document.getElementById('catMgr');
-  order.forEach((c,idx)=>{
+  const rowHtml=(c,idx,arr)=>{
     const info=A[c];const n=usage[c]||0;
-    const hidden=(state.catHidden||[]).includes(c);
+    const hidden=hiddenSet.includes(c);
     const isNone=(c==='_none');
     const row=document.createElement('div');row.className='catrow';
     row.innerHTML=
@@ -2465,17 +2470,42 @@ function secCategorie(){
       '<span class="crc">'+n+' app'+(n>1?'s':'')+'</span>'+
       '<span class="cra">'+
         (isNone?'':(
-        '<button class="crbtn" data-cup="'+c+'"'+(idx===0?' disabled':'')+' title="Monter">▲</button>'+
-        '<button class="crbtn" data-cdown="'+c+'"'+(idx===order.length-1||order[idx+1]==='_none'?' disabled':'')+' title="Descendre">▼</button>'+
+        (hidden?'':'<button class="crbtn" data-cup="'+c+'"'+(idx===0?' disabled':'')+' title="Monter">▲</button>'+
+        '<button class="crbtn" data-cdown="'+c+'"'+(idx===arr.length-1||arr[idx+1]==='_none'?' disabled':'')+' title="Descendre">▼</button>')+
         '<button class="crbtn" data-cedit="'+c+'" title="Éditer">✏️</button>'+
+        (hidden?'<button class="crbtn" data-cshow="'+c+'" title="Réafficher">👁</button>':'')+
         '<button class="crbtn del" data-cdel="'+c+'" title="Supprimer">🗑️</button>'))+
       '</span>';
-    mgr.appendChild(row);
-  });
-  mgr.querySelectorAll('[data-cup]').forEach(b=>b.addEventListener('click',()=>moveCat(order,order.indexOf(b.dataset.cup),-1)));
-  mgr.querySelectorAll('[data-cdown]').forEach(b=>b.addEventListener('click',()=>moveCat(order,order.indexOf(b.dataset.cdown),1)));
-  mgr.querySelectorAll('[data-cedit]').forEach(b=>b.addEventListener('click',()=>editCat(b.dataset.cedit)));
-  mgr.querySelectorAll('[data-cdel]').forEach(b=>b.addEventListener('click',()=>deleteCat(b.dataset.cdel)));
+    return row;
+  };
+
+  /* ---- catégories visibles ---- */
+  const mgr=document.getElementById('catMgr');
+  visibles.forEach((c,idx)=>mgr.appendChild(rowHtml(c,idx,visibles)));
+
+  /* ---- catégories masquées (section repliable) ---- */
+  if(masquees.length){
+    const hl=document.getElementById('catHidList');
+    masquees.forEach((c,idx)=>hl.appendChild(rowHtml(c,idx,masquees)));
+    const tog=document.getElementById('catHidToggle');
+    tog.addEventListener('click',()=>{
+      const open=hl.style.display!=='none';
+      hl.style.display=open?'none':'block';
+      document.getElementById('catHidChev').textContent=open?'▸':'▾';
+    });
+  }
+
+  const wire=(rootEl)=>{
+    rootEl.querySelectorAll('[data-cup]').forEach(b=>b.addEventListener('click',()=>moveCat(visibles,visibles.indexOf(b.dataset.cup),-1)));
+    rootEl.querySelectorAll('[data-cdown]').forEach(b=>b.addEventListener('click',()=>moveCat(visibles,visibles.indexOf(b.dataset.cdown),1)));
+    rootEl.querySelectorAll('[data-cedit]').forEach(b=>b.addEventListener('click',()=>editCat(b.dataset.cedit)));
+    rootEl.querySelectorAll('[data-cdel]').forEach(b=>b.addEventListener('click',()=>deleteCat(b.dataset.cdel)));
+    rootEl.querySelectorAll('[data-cshow]').forEach(b=>b.addEventListener('click',()=>{
+      const c=b.dataset.cshow;state.catHidden=(state.catHidden||[]).filter(x=>x!==c);
+      save();renderHome();secCategorie();toast('Catégorie réaffichée');}));
+  };
+  wire(mgr);
+  if(masquees.length)wire(document.getElementById('catHidList'));
 
   document.getElementById('catAdd').addEventListener('click',()=>{
     state.catCustom=state.catCustom||{};
