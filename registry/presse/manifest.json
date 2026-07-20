@@ -20,5 +20,6 @@
     "entry": "ui.js"
   },
   "description": "Stub « Presse » extrait du noyau — tuile en attente d'implémentation, aucun backend.",
-  "category": "Services"
+  "category": "Services",
+  "logo": "logo.svg"
 }

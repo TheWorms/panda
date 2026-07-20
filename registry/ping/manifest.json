@@ -22,5 +22,6 @@
   },
   "ui": {
     "entry": "ui.js"
-  }
+  },
+  "logo": "logo.svg"
 }

@@ -19,5 +19,6 @@
   "ui": {
     "entry": "ui.js"
   },
-  "description": "Stub « SSH » extrait du noyau — tuile en attente d'implémentation, aucun backend."
+  "description": "Stub « SSH » extrait du noyau — tuile en attente d'implémentation, aucun backend.",
+  "logo": "logo.svg"
 }

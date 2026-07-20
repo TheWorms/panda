@@ -42,5 +42,6 @@
   "ui": {
     "entry": "ui.js",
     "background": true
-  }
+  },
+  "logo": "logo.svg"
 }

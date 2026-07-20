@@ -16,5 +16,6 @@
       "category": "cuisine",
       "fleet": false
     }
-  ]
+  ],
+  "logo": "logo.svg"
 }
