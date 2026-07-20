@@ -36,7 +36,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.10.0"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -1764,6 +1764,56 @@ def api_brightness():
     cfg["brightness"] = pct
     _save(cfg)
     return jsonify({"ok": True, "value": pct})
+
+
+# ---------------------------------------------------------------------------
+# Mise à jour de Panda depuis GitHub (TheWorms/panda, branche main).
+# La vérification compare APP_VERSION local au APP_VERSION du dépôt public.
+# L'application de la MAJ passe par /usr/local/bin/panda-update (sudoers
+# NOPASSWD, même patron que insta-ctl) : téléchargement du zip GitHub,
+# copie dans /opt/panda, restart du service — détaché pour survivre au restart.
+# ---------------------------------------------------------------------------
+_SELFUPD_RAW = "https://raw.githubusercontent.com/TheWorms/panda/main/app.py"
+_SELFUPD_BIN = "/usr/local/bin/panda-update"
+
+
+@app.route("/api/system/selfupdate")
+@require_auth
+@require_admin
+def api_selfupdate_check():
+    """Compare la version locale à celle du dépôt GitHub public."""
+    import re as _re
+    try:
+        r = requests.get(_SELFUPD_RAW, timeout=8)
+        r.raise_for_status()
+        m = _re.search(r'APP_VERSION = "([\d.]+)"', r.text)
+        if not m:
+            return jsonify({"ok": False, "reason": "version distante illisible"})
+        latest = m.group(1)
+    except requests.RequestException as e:
+        return jsonify({"ok": False, "reason": f"GitHub injoignable ({type(e).__name__})"})
+    upd = _semver(latest) > _semver(APP_VERSION)
+    ready = os.path.isfile(_SELFUPD_BIN)
+    return jsonify({"ok": True, "current": APP_VERSION, "latest": latest,
+                    "update": upd, "updater_ready": ready})
+
+
+@app.route("/api/system/selfupdate", methods=["POST"])
+@require_auth
+@require_admin
+def api_selfupdate_run():
+    """Lance la mise à jour (détachée : survit au restart du service)."""
+    if not os.path.isfile(_SELFUPD_BIN):
+        return jsonify({"ok": False,
+                        "reason": "outil panda-update absent — installe-le d'abord (voir doc)"})
+    try:
+        subprocess.Popen(["sudo", "-n", _SELFUPD_BIN],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    except OSError as e:
+        return jsonify({"ok": False, "reason": f"lancement impossible ({e})"})
+    return jsonify({"ok": True,
+                    "msg": "Mise à jour lancée — le kiosk redémarre dans quelques instants."})
 
 
 @app.route("/api/system/veille", methods=["POST"])
