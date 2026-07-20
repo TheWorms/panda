@@ -284,3 +284,9 @@
 .fa-play{--fa:"\f04b"}
 .fa-circle-info{--fa:"\f05a"}
 .omico{display:inline-block;vertical-align:-0.15em;width:1em;height:1em;object-fit:contain}
+
+/* Logos d'application embarqués (champ manifest « logo ») */
+.tilogo{display:inline-block;object-fit:contain;width:1em;height:1em;vertical-align:-0.15em}
+.tile .ic .tilogo{width:30px;height:30px}
+.row .ic .tilogo,.rico .tilogo,.cic .tilogo{width:24px;height:24px}
+.lgicon .tilogo{width:44px;height:44px}

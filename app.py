@@ -648,16 +648,26 @@ def api_decl(aid):
 @app.route("/addons/<aid>/<path:fname>")
 @require_auth
 def addon_asset(aid, fname):
-    """Sert le module ui.js d'un addon — uniquement le fichier déclaré
-    dans son manifeste, rien d'autre du dossier."""
+    """Sert les fichiers déclarés d'un addon : le module ui.js (ui.entry) et,
+    si présent, le logo déclaré (manifest « logo »). Rien d'autre du dossier."""
     m = _REGISTRY.get(aid)
-    entry = (m or {}).get("ui", {}).get("entry")
-    if not m or not entry or fname != entry:
+    if not m:
         return jsonify({"ok": False, "reason": "module inconnu"}), 404
-    # _dir : racine réelle de l'addon (socle registry/ ou store
-    # /opt/panda/addons/). Repli sur REGISTRY_DIR pour compatibilité.
+    entry = (m or {}).get("ui", {}).get("entry")
+    logo = m.get("logo")
+    # logo éventuellement déclaré au niveau d'une tuile
+    if not logo:
+        for t in m.get("tiles", []):
+            if t.get("logo"):
+                logo = t["logo"]
+                break
     folder = m.get("_dir") or os.path.join(_registry.REGISTRY_DIR, aid)
-    return send_from_directory(folder, entry, mimetype="text/javascript")
+    if entry and fname == entry:
+        return send_from_directory(folder, entry, mimetype="text/javascript")
+    if logo and fname == logo:
+        mt = "image/svg+xml" if fname.lower().endswith(".svg") else None
+        return send_from_directory(folder, logo, mimetype=mt)
+    return jsonify({"ok": False, "reason": "fichier non autorisé"}), 404
 
 
 @app.route("/api/registry")

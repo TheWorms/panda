@@ -31,6 +31,12 @@ function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
    (à insérer via innerHTML, jamais textContent). */
 function omCP(e){if(OMSUB[e])return OMSUB[e];return [...e].map(c=>c.codePointAt(0).toString(16).toUpperCase()).filter(c=>c!=='FE0F').join('-');}
 function ic(e,color){var s=(state.iconStyle||'tabler');if(s==='emoji')return e||'';var k=(e||'').replace(/\uFE0F/g,'');if(s==='openmoji'){var cp=omCP(e);return OMSET.has(cp)?'<img class="omico" src="/static/openmoji/'+cp+'.svg" alt="'+(e||'')+'">':(e||'');}var col=color?' style="color:'+color+'"':'';if(s==='bootstrap'){var n=ICMAPS.bootstrap[k];return n?'<i class="bi bi-'+n+'"'+col+'></i>':(e||'');}if(s==='fa'){var v=ICMAPS.fa[k];if(!v)return e||'';var p=v.split(':');return '<i class="fa-'+(p[0]==='b'?'brands':'solid')+' fa-'+p[1]+'"'+col+'></i>';}var n=ICMAPS.tabler[k];return n?'<i class="ti ti-'+n+'"'+col+'></i>':(e||'');}
+/* tileIcon : logo SVG embarque de l'addon si present, sinon icone emoji (ic()). */
+function tileIcon(a){
+  if(a&&a.logo){var aid=a.addon||a.id;return '<img class="tilogo" src="/addons/'+encodeURIComponent(aid)+'/ui/'+encodeURIComponent(a.logo)+'?v='+encodeURIComponent(a.ver||'0')+'" alt="'+((a.nm||a.name||'')+'').replace(/"/g,'')+'" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(a.ic||a.icon,a.cc||a.color).replace(/"/g,'&quot;')+'">';}
+  return ic(a?(a.ic||a.icon):'',a?(a.cc||a.color):'');
+}
+
 const ICON_SKIP='.ti,.bi,.fa-solid,.fa-brands,.omico,[data-e],script,style,select,option,textarea,input';
 function iconifyInline(root){var s=(state.iconStyle||'tabler');if(s==='emoji')return;root=root||document.body;if(root.nodeType===1&&root.closest&&root.closest(ICON_SKIP))return;var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false),ns=[],n;while(n=w.nextNode()){if(ICON_RE.test(n.nodeValue))ns.push(n);}ns.forEach(function(tn){var p=tn.parentNode;if(!p||!p.closest||p.closest(ICON_SKIP))return;var parts=tn.nodeValue.split(ICON_RE),frag=document.createDocumentFragment();parts.forEach(function(pt){if(pt==null||pt==='')return;if(ICON_SET.has(pt)){var sp=document.createElement('span');sp.setAttribute('data-e',pt);sp.innerHTML=ic(pt);frag.appendChild(sp);}else{frag.appendChild(document.createTextNode(pt));}});p.replaceChild(frag,tn);});}
 function restyleInline(){document.querySelectorAll('span[data-e]').forEach(function(sp){sp.innerHTML=ic(sp.getAttribute('data-e'));});}
@@ -133,7 +139,7 @@ function fillGrid(ids,withAdd){
     const a=BYID[id];
     const el=document.createElement('div');
     el.className='tile';el.dataset.id=id;el.style.setProperty('--cc',a.cc);el.tabIndex=0;
-    el.innerHTML='<div class="ic">'+ic(a.ic,a.color)+'</div><div class="nm">'+dnm(a)+'</div><div class="src'+(a.fleet?' fleet':'')+'">'+a.src+'</div>';
+    el.innerHTML='<div class="ic">'+tileIcon(a)+'</div><div class="nm">'+dnm(a)+'</div><div class="src'+(a.fleet?' fleet':'')+'">'+a.src+'</div>';
     el.addEventListener('click',()=>openAddon(id));
     el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openAddon(id);}});
     gridEl.appendChild(el);
@@ -280,7 +286,7 @@ async function loadLaunchView(a){
   let cfg={};try{const r=await fetch('/api/modules/'+a.id);if(r.ok)cfg=await r.json();}catch(e){}
   const sch=(CFG_SCHEMA[a.id]||[]).find(f=>f.key==='url');
   const url=((cfg.url||'').trim())||(sch&&sch.placeholder)||'';
-  let h='<div class="lgicon">'+ic(a.ic,a.color)+'</div><div class="lgname">'+dnm(a)+'</div>';
+  let h='<div class="lgicon">'+tileIcon(a)+'</div><div class="lgname">'+dnm(a)+'</div>';
   h+='<div class="lgsrc">🖥️ sur <b>'+(a.src.charAt(0).toUpperCase()+a.src.slice(1))+'</b></div>';
   h+='<div class="lgurl">'+(url||'URL non configurée')+'</div>';
   h+='<button class="lgbtn" id="lgOpen"'+(url?'':' disabled')+'>Ouvrir en plein écran \u2197</button>';
