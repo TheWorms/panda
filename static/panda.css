@@ -944,3 +944,8 @@
 .eccol{width:30px;height:30px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:transform .1s}
 .eccol.on{border-color:var(--fg);transform:scale(1.12)}
 .eccol:active{transform:scale(.95)}
+
+/* Section repliable « Catégories masquées » */
+.cathdrow{display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 4px;font-weight:600;color:var(--faint);user-select:none;border-top:1px solid var(--border-soft)}
+.cathdrow:hover{color:var(--fg)}
+.cathchevron{display:inline-block;width:14px;font-size:12px}
