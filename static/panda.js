@@ -30,7 +30,7 @@ function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
    Fallback : un emoji non mappé est affiché tel quel. ic() renvoie du HTML
    (à insérer via innerHTML, jamais textContent). */
 function omCP(e){if(OMSUB[e])return OMSUB[e];return [...e].map(c=>c.codePointAt(0).toString(16).toUpperCase()).filter(c=>c!=='FE0F').join('-');}
-function ic(e,color){var s=(state.iconStyle||'tabler');if(s==='emoji')return e||'';var k=(e||'').replace(/\uFE0F/g,'');if(s==='openmoji'){var cp=omCP(e);return OMSET.has(cp)?'<img class="omico" src="/static/openmoji/'+cp+'.svg" alt="'+(e||'')+'">':(e||'');}var col=color?' style="color:'+color+'"':'';if(s==='bootstrap'){var n=ICMAPS.bootstrap[k];return n?'<i class="bi bi-'+n+'"'+col+'></i>':(e||'');}if(s==='fa'){var v=ICMAPS.fa[k];if(!v)return e||'';var p=v.split(':');return '<i class="fa-'+(p[0]==='b'?'brands':'solid')+' fa-'+p[1]+'"'+col+'></i>';}var n=ICMAPS.tabler[k];return n?'<i class="ti ti-'+n+'"'+col+'></i>':(e||'');}
+function ic(e,color){var k=(e||'').replace(/\uFE0F/g,'');var col=color?' style="color:'+color+'"':'';var n=ICMAPS.tabler[k];return '<i class="ti ti-'+(n||'square-rounded')+'"'+col+'></i>';}
 /* tileIcon : logo SVG embarque de l'addon si present, sinon icone emoji (ic()). */
 function tileIcon(a){
   if(a&&a.logo){var aid=a.addon||a.id;return '<img class="tilogo" src="/addons/'+encodeURIComponent(aid)+'/ui/'+encodeURIComponent(a.logo)+'?v='+encodeURIComponent(a.ver||'0')+'" alt="'+((a.nm||a.name||'')+'').replace(/"/g,'')+'" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(a.ic||a.icon,a.cc||a.color).replace(/"/g,'&quot;')+'">';}
@@ -38,11 +38,12 @@ function tileIcon(a){
 }
 
 const ICON_SKIP='.ti,.bi,.fa-solid,.fa-brands,.omico,[data-e],script,style,select,option,textarea,input';
-function iconifyInline(root){var s=(state.iconStyle||'tabler');if(s==='emoji')return;root=root||document.body;if(root.nodeType===1&&root.closest&&root.closest(ICON_SKIP))return;var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false),ns=[],n;while(n=w.nextNode()){if(ICON_RE.test(n.nodeValue))ns.push(n);}ns.forEach(function(tn){var p=tn.parentNode;if(!p||!p.closest||p.closest(ICON_SKIP))return;var parts=tn.nodeValue.split(ICON_RE),frag=document.createDocumentFragment();parts.forEach(function(pt){if(pt==null||pt==='')return;if(ICON_SET.has(pt)){var sp=document.createElement('span');sp.setAttribute('data-e',pt);sp.innerHTML=ic(pt);frag.appendChild(sp);}else{frag.appendChild(document.createTextNode(pt));}});p.replaceChild(frag,tn);});}
+function iconifyInline(root){root=root||document.body;if(root.nodeType===1&&root.closest&&root.closest(ICON_SKIP))return;var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false),ns=[],n;while(n=w.nextNode()){if(ICON_RE.test(n.nodeValue))ns.push(n);}ns.forEach(function(tn){var p=tn.parentNode;if(!p||!p.closest||p.closest(ICON_SKIP))return;var parts=tn.nodeValue.split(ICON_RE),frag=document.createDocumentFragment();parts.forEach(function(pt){if(pt==null||pt==='')return;if(ICON_SET.has(pt)){var sp=document.createElement('span');sp.setAttribute('data-e',pt);sp.innerHTML=ic(pt);frag.appendChild(sp);}else{frag.appendChild(document.createTextNode(pt));}});p.replaceChild(frag,tn);});}
 function restyleInline(){document.querySelectorAll('span[data-e]').forEach(function(sp){sp.innerHTML=ic(sp.getAttribute('data-e'));});}
-var _icoPending=false;var _icoObs=new MutationObserver(function(){if((state.iconStyle||'tabler')==='emoji')return;if(_icoPending)return;_icoPending=true;setTimeout(function(){_icoPending=false;iconifyInline(document.body);},40);});
+var _icoPending=false;var _icoObs=new MutationObserver(function(){if(_icoPending)return;_icoPending=true;setTimeout(function(){_icoPending=false;iconifyInline(document.body);},40);});
 function startIconify(){try{_icoObs.observe(document.body,{childList:true,subtree:true});iconifyInline(document.body);}catch(e){}}
 function sanitize(){
+  state.iconStyle='tabler';
   state.installed=(state.installed||[]).filter(id=>BYID[id]);
   // un addon du store présent sur disque DOIT figurer dans les installés :
   // répare une éventuelle désynchronisation (ex. retrait local sans vraie désinstall).
@@ -2362,8 +2363,7 @@ function secApparence(){
     '<div class="setrow"><div class="lft"><div class="t">Thème</div><div class="d">Clair ou sombre</div></div><div class="seg" id="segTheme"><button data-t="dark">Sombre</button><button data-t="light">Clair</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Luminosité</div><div class="d">Assombrit l\'affichage (atténuation logicielle — cet écran HDMI n\'a pas de rétroéclairage pilotable)</div></div><input type="range" min="5" max="100" step="5" id="appLum" value="'+(state.brightness||100)+'" style="width:180px"></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Police</div><div class="d">Police de toute l\'interface. « Atkinson » est conçue pour une lisibilité maximale ; essaie-la si le texte te paraît flou.</div></div><select class="inp" id="selFont" style="max-width:220px">'+Object.keys(UI_FONTS).map(k=>'<option value="'+k+'"'+((state.font||'system')===k?' selected':'')+'>'+UI_FONTS[k].label+'</option>').join('')+'</select></div>'+
-    '<div class="setrow"><div class="lft"><div class="t">Style d\'icônes</div><div class="d">Style des icônes de tuiles. Météo, lune, marées et jardin gardent leurs emojis à l\'intérieur de leurs vues.</div></div><select class="inp" id="selIcon" style="max-width:190px"><option value="tabler"'+((state.iconStyle||'tabler')==='tabler'?' selected':'')+'>Tabler</option><option value="emoji"'+(state.iconStyle==='emoji'?' selected':'')+'>Emoji (origine)</option><option value="fa"'+(state.iconStyle==='fa'?' selected':'')+'>Font Awesome</option><option value="bootstrap"'+(state.iconStyle==='bootstrap'?' selected':'')+'>Bootstrap</option><option value="openmoji"'+(state.iconStyle==='openmoji'?' selected':'')+'>OpenMoji (coloré)</option></select></div>'+
-    '<div class="setrow"><div class="lft"><div class="t">Recharger l\'interface</div><div class="d">Recharge l\'affichage — utile pour appliquer pleinement un changement de police ou d\'icônes, ou rafraîchir le kiosk sans le redémarrer.</div></div><button class="btnpill" id="btnReloadUI" type="button">Rafraîchir</button></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Recharger l\'interface</div><div class="d">Recharge l\'affichage — utile pour appliquer pleinement un changement de police, ou rafraîchir le kiosk sans le redémarrer.</div></div><button class="btnpill" id="btnReloadUI" type="button">Rafraîchir</button></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Écran</div>'+
     '<div class="setrow"><div class="lft"><div class="t">Mise en veille écran</div><div class="d">Éteint l\'écran après une période d\'inactivité (un toucher rallume, sans rien déclencher)</div></div><select class="inp" id="veille">'+'<option value="0"'+(state.veille===0?' selected':'')+'>Jamais</option>'+'<option value="5"'+(state.veille===5?' selected':'')+'>5 min</option>'+'<option value="15"'+(state.veille===15?' selected':'')+'>15 min</option>'+'<option value="30"'+(state.veille===30?' selected':'')+'>30 min</option>'+'<option value="60"'+(state.veille===60?' selected':'')+'>1 h</option>'+'<option value="120"'+(state.veille===120?' selected':'')+'>2 h</option>'+'<option value="180"'+(state.veille===180?' selected':'')+'>3 h</option>'+'<option value="360"'+(state.veille===360?' selected':'')+'>6 h</option>'+'<option value="720"'+(state.veille===720?' selected':'')+'>12 h</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Pendant la veille</div><div class="d">Écran éteint (économie maximale), ou horloge affichée — avec la météo du bandeau si disponible. Un toucher réveille.</div></div><select class="inp" id="veilleMode">'+'<option value="off"'+((state.veilleMode||'off')==='off'?' selected':'')+'>Écran éteint</option>'+'<option value="clock"'+(state.veilleMode==='clock'?' selected':'')+'>Horloge</option>'+'<option value="meteo"'+(state.veilleMode==='meteo'?' selected':'')+'>Horloge + météo</option>'+'</select></div>'+
@@ -2394,11 +2394,6 @@ function secApparence(){
     document.body.appendChild(ov);
     setTimeout(()=>location.reload(),5000);
   });
-  const segI=document.getElementById('selIcon');
-  if(segI)segI.addEventListener('change',()=>{state.iconStyle=segI.value;save();renderHome();
-    if(segI.value==='emoji'){restyleInline();}else{iconifyInline(document.body);restyleInline();}
-    const lbl={tabler:'Tabler',emoji:'emojis',fa:'Font Awesome',bootstrap:'Bootstrap',openmoji:'OpenMoji'}[segI.value]||segI.value;
-    toast('Icônes : '+lbl);});
 
   const segF=document.getElementById('segFont');
   if(segF){const cur=state.fontScale||100;
