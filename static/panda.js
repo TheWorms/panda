@@ -2823,7 +2823,7 @@ function screenOff(){
     const upd=()=>{const d=new Date();const c=document.getElementById('veilClk');if(!c)return;
       c.textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')});
       const de=document.getElementById('veilDate');if(de)de.textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-      if(mode==='meteo'){const w=document.getElementById('veilWx'),s=document.getElementById('wxBar');if(w)w.textContent=((s&&s.textContent)||'').trim();}
+      if(mode==='meteo'){const w=document.getElementById('veilWx'),s=document.getElementById('wxBar');if(w)w.innerHTML=((s&&s.innerHTML)||'').trim();}
       // anti-marquage : léger déplacement aléatoire du bloc chaque minute
       const b=document.getElementById('veilBox');
       if(b&&d.getSeconds()===0)b.style.transform='translate('+(-50+(Math.random()*8-4))+'%,'+(-50+(Math.random()*8-4))+'%)';
