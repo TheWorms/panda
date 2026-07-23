@@ -229,6 +229,26 @@
   @keyframes stspin{to{transform:rotate(360deg)}}
   .stbmsg{font-size:15px;font-weight:600;color:var(--text)}
   .stbsub{font-size:12px;color:var(--faint);margin-top:6px}
+  /* Overlay plein écran de mise à jour : au-dessus de TOUT (clavier virtuel
+     compris à 9999), capte toute interaction pendant la bascule. */
+  .updov{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:radial-gradient(1200px 500px at 50% -10%,rgba(45,212,191,.10),transparent),rgba(5,8,11,.93);backdrop-filter:blur(4px)}
+  .updcard{max-width:460px;display:flex;flex-direction:column;align-items:center;gap:13px}
+  .updov .stbspin{width:44px;height:44px;border-width:4px;margin:0 0 4px}
+  .updttl{font-size:22px;font-weight:700;color:var(--text)}
+  .updsub{font-size:15px;color:var(--faint);line-height:1.5}
+  .updov.warn .updttl{color:var(--warn,#e0a52b)}
+  .updov.bad .updttl{color:var(--bad,#e05252)}
+  .updov.ok .updttl{color:var(--green,#3ddc84)}
+  .updtap{font-size:13px;color:var(--faint);margin-top:12px;text-decoration:underline}
+  .upddots{display:inline-flex;gap:7px;margin-top:4px}
+  .upddots i{width:9px;height:9px;border-radius:50%;background:var(--accent);animation:upddot 1.2s infinite ease-in-out}
+  .upddots i:nth-child(2){animation-delay:.2s}
+  .upddots i:nth-child(3){animation-delay:.4s}
+  @keyframes upddot{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+  /* Bandeau bref de confirmation post-mise à jour (non bloquant). */
+  .updbanner{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-20px);z-index:99000;background:var(--panel);border:1px solid var(--accent-dim);color:var(--text);font-size:14px;font-weight:600;padding:11px 18px;border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.42);opacity:0;transition:.25s;max-width:90vw}
+  .updbanner.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .updbanner b{color:var(--accent)}
   .sttitle{font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px}
   .stmsg{font-size:13px;color:var(--dim);margin-bottom:14px;line-height:1.5}
   .stchk{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text);background:var(--tile);border:1px solid var(--border-soft);border-radius:10px;padding:12px;cursor:pointer}

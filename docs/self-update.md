@@ -195,3 +195,71 @@ curl -fsS http://127.0.0.1:8090/healthz        # status ok + nouvelle version
 ls /var/backups/panda/                          # sauvegarde horodatée présente
 sudo tail -n 40 /var/log/panda-update.log       # déroulé de l'opération
 ```
+
+## Retour visuel côté interface
+
+Une mise à jour peut être lancée depuis **Réglages → Version**, mais aussi
+subie passivement (déclenchée depuis un autre appareil, ou pendant qu'on
+navigue ailleurs). Deux éléments d'interface rendent l'opération lisible.
+
+### Overlay plein écran (pendant la MAJ)
+
+Dès que `POST /api/system/selfupdate` répond `ok`, `static/panda.js` affiche un
+**overlay plein écran** (`startUpdateOverlay`) ajouté à `<body>`, au-dessus de
+tout (y compris le clavier virtuel), qui **capte toute interaction** : quelle
+que soit la vue affichée, personne ne peut taper sur une interface en cours de
+bascule. Il anime l'attente (spinner + points), **sans compte à rebours ni
+pourcentage** (durée réelle inconnue). Son polling `/healthz` (cadence 3 s) lui
+est propre et survit à tout changement de section.
+
+Il distingue **trois issues**, sans jamais annoncer un succès mensonger :
+
+| Issue | Détection | Affichage |
+|---|---|---|
+| **Succès** | `/healthz` revient `ok` à une version **supérieure** | « Mise à jour réussie », puis rechargement |
+| **Rollback** | le service a été vu **injoignable** (fenêtre de restart) puis revient `ok` à la **même** version | « Mise à jour non appliquée — l'ancienne version a été restaurée », toucher pour recharger |
+| **Pas de retour** | plus de **240 s** sans issue | « Le kiosk ne répond pas — vérifiez le kiosk ou contactez un administrateur », toucher pour recharger |
+
+Le drapeau « service vu injoignable » (`sawDown`) est **indispensable** :
+pendant tout le téléchargement/extraction, l'**ancien** service répond encore
+`/healthz` à l'ancienne version. Sans ce garde-fou, l'interface conclurait à
+tort à un rollback. Le seul `systemctl restart` a lieu à la toute fin ; c'est
+la fenêtre d'indisponibilité qui atteste que la bascule a réellement eu lieu.
+
+**Seuil des 240 s (cas 3)** : il doit couvrir le *pire cas complet* de
+`panda-update`, pas seulement `HEALTH_TIMEOUT` (30 s). Budget : jusqu'à 3
+téléchargements × `DL_TIMEOUT` (30 s) + sauvegarde + extraction + `pip` éventuel
++ `systemctl restart` + `HEALTH_TIMEOUT` (30 s), et le cas échéant le chemin de
+rollback (restauration + restart + 30 s). 240 s laisse une marge confortable
+au-dessus de ce cumul tout en évitant de tourner indéfiniment ; au-delà,
+l'interface propose de recharger d'un toucher plutôt que de rester muette.
+
+### Bandeau de confirmation (après la MAJ)
+
+Au **prochain chargement** de l'interface après une MAJ **réussie**, un bandeau
+bref « Nouvelle version installée avec succès — v<version> » s'affiche
+(disparaît seul après ~6 s ou au premier toucher). Il n'apparaît **jamais** lors
+d'un démarrage ordinaire (reboot du Pi, restart manuel, simple rechargement).
+
+Le déclencheur est **porté par le serveur**, pas par le navigateur (l'appareil
+qui rouvre l'interface n'est pas forcément celui qui a lancé la MAJ) :
+
+- `panda-update` écrit, **juste après** la validation `/healthz` réussie, un
+  marqueur `data/.update-done.json` (`{"version", "ts"}`). `data/` est un chemin
+  **préservé** entre versions (jamais dans `CODE_PATHS`) ; le fichier est
+  `chown` vers l'utilisateur applicatif pour que Flask puisse le lire **et** le
+  supprimer. En cas de **rollback**, aucun marqueur n'est écrit → aucun bandeau
+  mensonger.
+- `GET /api/system/update-done` (protégée par `@require_auth`, pour que le mur
+  affiche le bandeau même hors session admin) **revendique** le marqueur par
+  `os.rename` avant de le lire, puis le supprime : lecture-suppression
+  **atomique**, servie **une seule fois**.
+- **Concurrence** (deux onglets ouverts juste après une MAJ) : seul le premier
+  `rename` réussit ; l'autre appel reçoit `pending:false`. **Un seul onglet
+  affiche le bandeau** — comportement volontaire et sans conséquence, le message
+  étant purement informatif.
+
+> Petite fenêtre de course assumée : l'overlay recharge la page ~1,5 s après
+> avoir détecté le succès, ce qui laisse à `panda-update` le temps d'écrire le
+> marqueur avant que `update-done` ne soit interrogé. Si le marqueur n'était pas
+> encore là, le bandeau serait simplement omis (best-effort, jamais bloquant).
