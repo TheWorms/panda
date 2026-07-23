@@ -13,7 +13,9 @@ window.PandaAddons.meteo = (function () {
     // entre les identifiants de degrades des differentes icones.
     const D=isDay!==0;const m={0:['clear-day','clear-night','Ciel clair'],1:['partly-cloudy-day','partly-cloudy-night','Peu nuageux'],2:['overcast-day','overcast-night','Partiellement nuageux'],3:['overcast','overcast','Couvert'],45:['fog','fog','Brouillard'],48:['fog','fog','Brouillard givrant'],51:['drizzle','drizzle','Bruine légère'],53:['drizzle','drizzle','Bruine'],55:['drizzle','drizzle','Bruine dense'],56:['sleet','sleet','Bruine verglaçante'],57:['sleet','sleet','Bruine verglaçante'],61:['rain','rain','Pluie faible'],63:['rain','rain','Pluie'],65:['extreme-rain','extreme-rain','Pluie forte'],66:['sleet','sleet','Pluie verglaçante'],67:['sleet','sleet','Pluie verglaçante'],71:['snow','snow','Neige faible'],73:['snow','snow','Neige'],75:['snow','snow','Neige forte'],77:['snow','snow','Grains de neige'],80:['rain','rain','Averses'],81:['rain','rain','Averses'],82:['extreme-rain','extreme-rain','Averses violentes'],85:['snow','snow','Averses de neige'],86:['snow','snow','Averses de neige'],95:['thunderstorms','thunderstorms','Orage'],96:['hail','hail','Orage + grêle'],99:['hail','hail','Orage + grêle']};
     const e=m[code]||['overcast','overcast','—'];
-    return ['<img class="wxi" src="/static/wx/'+(D?e[0]:e[1])+'.svg" alt="" draggable="false">',e[2]];
+    const n=D?e[0]:e[1];
+    // [0] = balise HTML, [1] = libelle, [2] = nom d'icone (pour l'element SVG <image>)
+    return ['<img class="wxi" src="/static/wx/'+n+'.svg" alt="" draggable="false">',e[2],n];
   }
   function getGeo(){
     return new Promise(res=>{
@@ -59,7 +61,7 @@ window.PandaAddons.meteo = (function () {
     hours.forEach((x,i)=>{const hw=wc(x.code,isDay);
       g+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(x.temp).toFixed(1)+'" r="3" fill="var(--accent)"/>'+
          '<text x="'+X(i).toFixed(1)+'" y="'+(Y(x.temp)-8).toFixed(1)+'" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text)">'+Math.round(x.temp)+'°</text>'+
-         '<text x="'+X(i).toFixed(1)+'" y="'+(H-26)+'" text-anchor="middle" font-size="15">'+hw[0]+'</text>'+
+         '<image href="/static/wx/'+hw[2]+'.svg" x="'+(X(i)-12).toFixed(1)+'" y="'+(H-50)+'" width="24" height="24"/>'+
          '<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="var(--dim)">'+x.time.slice(11,13)+'h</text>';});
     return '<div style="padding:0 22px 12px"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><polyline points="'+pts+'" fill="none" stroke="var(--accent)" stroke-width="2"/>'+g+'</svg></div>';
   }
