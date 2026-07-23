@@ -74,7 +74,10 @@ def _discover():
             continue
         fields = (m.get("config") or {}).get("fields") or []
         if fields:
-            out.append((m["id"], m.get("name", m["id"]), fields))
+            # `id` peut manquer d'un manifeste malformé : on retombe sur le nom
+            # du dossier plutôt que de lever un KeyError qui casse tout l'outil.
+            mid = m.get("id") or aid
+            out.append((mid, m.get("name", mid), fields))
     return out
 
 
