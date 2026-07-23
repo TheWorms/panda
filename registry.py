@@ -81,6 +81,13 @@ def _validate(manifest, folder):
     ids = [t.get("id") or manifest["id"] for t in tiles]
     if len(ids) != len(set(ids)):
         errs.append("tiles : identifiants en double")
+    # `name` et `icon` sont déréférencés sans repli par tiles() : un manifeste
+    # sans eux passerait la validation puis ferait tomber tout /api/registry
+    # (KeyError). On l'écarte ici, comme les autres contrôles de contrat.
+    for t in tiles:
+        if not t.get("name") or not t.get("icon"):
+            errs.append("tiles : chaque tuile doit porter `name` et `icon`")
+            break
 
     req = manifest.get("requires")
     if req is not None and (not isinstance(req, list)
@@ -177,9 +184,12 @@ def load(path=None):
     """
     registry, errors = {}, {}
     roots = [path] if path is not None else [REGISTRY_DIR, ADDONS_DIR]
-    if not os.path.isdir(roots[0]):
-        log.error("registre introuvable : %s", roots[0])
-        return registry, {"_registry": [f"dossier absent : {roots[0]}"]}
+    # _scan_dir ignore proprement une racine absente : on n'échoue que si
+    # *aucune* racine n'existe. Sinon un socle déplacé effacerait à tort tous
+    # les addons du store (/opt/panda/addons/) restés en place.
+    if not any(os.path.isdir(r) for r in roots):
+        log.error("aucune racine d'addons : %s", roots)
+        return registry, {"_registry": [f"aucune racine d'addons : {roots}"]}
     for root in roots:
         _scan_dir(root, registry, errors)
     return registry, errors
@@ -247,9 +257,12 @@ def config_schema(registry):
 
 def config_doc(registry):
     """{id: [label, url]} — ce que CFG_DOC contenait."""
-    return {aid: [m["config"]["doc"]["label"], m["config"]["doc"]["url"]]
-            for aid, m in registry.items()
-            if m.get("config", {}).get("doc")}
+    out = {}
+    for aid, m in registry.items():
+        doc = m.get("config", {}).get("doc")
+        if doc:
+            out[aid] = [doc.get("label", ""), doc.get("url", "")]
+    return out
 
 
 def requires_map(registry):
