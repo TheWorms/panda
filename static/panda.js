@@ -3067,11 +3067,10 @@ async function boot(){
     const r=await fetch('/api/session');const s=await r.json();
     if(s.theme){state.theme=s.theme;document.documentElement.setAttribute('data-theme',s.theme);
       try{localStorage.setItem('panda-theme',s.theme);}catch(e){}}
+    // Bandeau post-MAJ : vérifié dès le chargement, écran de PIN compris —
+    // le bandeau (z-index 1000000) s'affiche au-dessus du verrouillage.
+    try{checkUpdateDone();}catch(e){}
     if(s.authed){lock.classList.remove('show');
-      // Isolé en tête, dans son propre try/catch : ne doit JAMAIS dépendre du
-      // succès des appels suivants (un throw plus loin dans la chaîne ne doit
-      // pas empêcher le bandeau post-MAJ de s'afficher).
-      try{checkUpdateDone();}catch(e){}
       await pullConfig();applyState();resetIdle();updateFleet();updateConnIcons();updateVolBtn();_volBtnBootRetry();startAgendaNotif();setupStoreTimer();if((state.storeCheck||'open')!=='manual')checkStoreUpdates(true);
       let goto=null;try{goto=localStorage.getItem('panda-store-goto');localStorage.removeItem('panda-store-goto');}catch(e){}
       if(goto==='installed'){appTab='myapps';openSettings('apps');}
