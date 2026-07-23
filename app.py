@@ -49,6 +49,13 @@ DEFAULT_STORE_URL = "https://raw.githubusercontent.com/TheWorms/abeille/main/"
 # ne quitte jamais ce poste). En dur dans le socle : seule une modification
 # du code (accès root) peut changer la racine de confiance du mode officiel.
 STORE_OFFICIAL_PUBKEY = "8naRKWwUoxagk+OHZ9IdXGPcmsZGmmQo79BZXCEwa4c="
+# Clé publique Ed25519 (base64) qui authentifie les *releases de code* (mise à
+# jour de Panda lui-même) — distincte de la clé du store d'addons ci-dessus.
+# Générée par tools/gen-release-keys.py ; la clé privée ne quitte jamais le
+# poste du mainteneur. DOIT être identique à RELEASE_PUBKEY dans
+# install/panda-update. Vide = mise à jour signée non configurée (fork sans
+# release publiée) : la vérification et l'outil refusent alors proprement.
+PANDA_RELEASE_PUBKEY = ""
 ALLOWED_KEYS = {"installed", "hidden", "order", "railOn", "connBar", "theme", "ntp",
                 "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "catColors", "catIcons", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "veilleOff", "font", "railMode", "timerDisplay"}
 import registry as _registry
@@ -780,6 +787,27 @@ def _verify_index_sig(blob, sig_b64):
     try:
         pub = Ed25519PublicKey.from_public_bytes(
             base64.b64decode(_store_pubkey()))
+        pub.verify(base64.b64decode(sig_b64.strip()), blob)
+        return True
+    except Exception:
+        return False
+
+
+def _verify_release_sig(blob, sig_b64):
+    """Vérifie la signature Ed25519 d'une release (release.json). True si OK.
+
+    Même modèle que _verify_index_sig, mais avec la clé dédiée aux releases de
+    code (PANDA_RELEASE_PUBKEY). Sans clé embarquée, aucune release n'est
+    authentifiable : on refuse."""
+    import base64
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PublicKey,
+    )
+    if not PANDA_RELEASE_PUBKEY:
+        return False
+    try:
+        pub = Ed25519PublicKey.from_public_bytes(
+            base64.b64decode(PANDA_RELEASE_PUBKEY))
         pub.verify(base64.b64decode(sig_b64.strip()), blob)
         return True
     except Exception:
@@ -1772,13 +1800,16 @@ def api_brightness():
 
 
 # ---------------------------------------------------------------------------
-# Mise à jour de Panda depuis GitHub (TheWorms/panda, branche main).
-# La vérification compare APP_VERSION local au APP_VERSION du dépôt public.
-# L'application de la MAJ passe par /usr/local/bin/panda-update (sudoers
-# NOPASSWD, même patron que insta-ctl) : téléchargement du zip GitHub,
-# copie dans /opt/panda, restart du service — détaché pour survivre au restart.
+# Mise à jour de Panda depuis une release GitHub *signée* (TheWorms/panda).
+# La vérification lit la version depuis release.json (authentifié Ed25519 par
+# PANDA_RELEASE_PUBKEY), pas une simple lecture du code source : l'interface et
+# l'outil panda-update parlent de la même version, elle-même prouvée.
+# L'application de la MAJ passe par /usr/local/bin/panda-update (sudoers dédié
+# NOPASSWD) : téléchargement + vérif signature/sha256, bascule atomique,
+# restart du service, rollback si le kiosk ne repart pas — détaché pour
+# survivre au restart. Détails : docs/self-update.md.
 # ---------------------------------------------------------------------------
-_SELFUPD_RAW = "https://raw.githubusercontent.com/TheWorms/panda/main/app.py"
+_RELEASE_BASE = "https://github.com/TheWorms/panda/releases/latest/download/"
 _SELFUPD_BIN = "/usr/local/bin/panda-update"
 
 
@@ -1786,17 +1817,28 @@ _SELFUPD_BIN = "/usr/local/bin/panda-update"
 @require_auth
 @require_admin
 def api_selfupdate_check():
-    """Compare la version locale à celle du dépôt GitHub public."""
-    import re as _re
+    """Compare la version locale à la dernière release signée publiée.
+
+    La version distante vient de release.json (téléchargé + signature Ed25519
+    vérifiée), pas d'une lecture brute du code : la même version prouvée est
+    ensuite installée par panda-update."""
+    if not PANDA_RELEASE_PUBKEY:
+        return jsonify({"ok": False,
+                        "reason": "mise à jour signée non configurée sur ce socle"})
     try:
-        r = requests.get(_SELFUPD_RAW, timeout=8)
+        r = requests.get(_RELEASE_BASE + "release.json", timeout=8)
         r.raise_for_status()
-        m = _re.search(r'APP_VERSION = "([\d.]+)"', r.text)
-        if not m:
-            return jsonify({"ok": False, "reason": "version distante illisible"})
-        latest = m.group(1)
+        blob = r.content
+        rs = requests.get(_RELEASE_BASE + "release.json.sig", timeout=8)
+        rs.raise_for_status()
     except requests.RequestException as e:
         return jsonify({"ok": False, "reason": f"GitHub injoignable ({type(e).__name__})"})
+    if not _verify_release_sig(blob, rs.text):
+        return jsonify({"ok": False, "reason": "signature de la release invalide — refusée"})
+    try:
+        latest = str(json.loads(blob.decode("utf-8"))["version"])
+    except (ValueError, KeyError, UnicodeDecodeError):
+        return jsonify({"ok": False, "reason": "release.json illisible"})
     upd = _semver(latest) > _semver(APP_VERSION)
     ready = os.path.isfile(_SELFUPD_BIN)
     return jsonify({"ok": True, "current": APP_VERSION, "latest": latest,
