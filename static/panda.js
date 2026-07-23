@@ -386,7 +386,7 @@ function tmBeepPlay(){
   const snd=tmSound||'';
   if(snd){
     try{
-      if(!tmSoundEl||tmSoundEl.dataset.n!==snd){tmSoundEl=new Audio(tmSoundUrl(snd));tmSoundEl.dataset={n:snd};}
+      if(!tmSoundEl||tmSoundEl.dataset.n!==snd){tmSoundEl=new Audio(tmSoundUrl(snd));tmSoundEl.dataset.n=snd;}
       tmSoundEl.currentTime=0;tmSoundEl.play().catch(()=>tmBeepSynth());
       return;
     }catch(e){}
@@ -1971,7 +1971,7 @@ async function renderStoreList(box){
 function storeItemNode(a){
   const by=BYID[a.id];
   const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'');
-  const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?by.color:'#f0b429');
+  const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?(by.cc||by.color):'#f0b429');
   const _logo=a.logo||(by?by.logo:'');
   const _ico=_logo?('<img class="tilogo" src="/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_logo)+'?v='+encodeURIComponent(a.version||(by?by.ver:'')||'0')+'" alt="" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(icoName,icoCol).replace(/"/g,'&quot;')+'">'):ic(icoName,icoCol);
   const dim=(a.status==='installe'||a.status==='incompatible')?' dimmed':'';
@@ -2019,7 +2019,7 @@ function openAddonDetail(a){
   const esc=s=>(s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
   const by=BYID[a.id];
   const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'—');
-  const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?by.color:'#f0b429');
+  const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?(by.cc||by.color):'#f0b429');
   const _dlogo=a.logo||(by?by.logo:'');
   const _dico=_dlogo?('<img class="tilogo" src="/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_dlogo)+'?v='+encodeURIComponent(a.version||(by?by.ver:'')||'0')+'" alt="" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(icoName,icoCol).replace(/"/g,'&quot;')+'">'):ic(icoName,icoCol);
   const sub=a.status==='installe'?('Installé · source '+(a.source||'store'))
@@ -2027,7 +2027,7 @@ function openAddonDetail(a){
     :a.status==='maj'?('Mise à jour disponible · v'+a.installed_version+' → v'+a.version)
     :"Disponible à l'installation";
   const deps=(a.requires&&a.requires.length)?a.requires.map(id=>{
-    const b=BYID[id];const nm=b?dnm(b):id;const icn=b?b.ic:'🧩';const icc=b?b.color:'#8a94a0';
+    const b=BYID[id];const nm=b?dnm(b):id;const icn=b?b.ic:'🧩';const icc=b?(b.cc||b.color):'#8a94a0';
     return '<span class="adDep"><span class="di">'+ic(icn,icc)+'</span>'+nm+'</span>';
   }).join(''):'<span class="cmeta">Aucune</span>';
   const ov=document.createElement('div');ov.className='adOverlay';
@@ -2358,7 +2358,12 @@ function secReglages(){
 function moveCat(cats,i,dir){
   const j=i+dir;if(j<0||j>=cats.length)return;
   const arr=cats.slice();const t=arr[i];arr[i]=arr[j];arr[j]=t;
-  state.catOrder=arr;save();renderHome();secCategorie();
+  // `cats` ne contient que les catégories visibles : on réinsère les autres
+  // (masquées, déjà connues) pour ne pas les effacer de l'ordre enregistré.
+  const rest=[];
+  (state.catOrder||[]).forEach(c=>{if(!arr.includes(c)&&!rest.includes(c))rest.push(c);});
+  (state.catHidden||[]).forEach(c=>{if(!arr.includes(c)&&!rest.includes(c))rest.push(c);});
+  state.catOrder=arr.concat(rest);save();renderHome();secCategorie();
 }
 function secApparence(){
   let h='<h4>Apparence</h4><div class="desc">Thème, écran et disposition de l\'accueil. L\'ordre des tuiles est fixe.</div>'+
@@ -2420,6 +2425,7 @@ function secApparence(){
       toast(j.ok?('Luminosité '+j.value+' %'):('Impossible — '+(j.reason||'')));});
   }
   const rot=document.getElementById('rotSel');
+  if(rot)rot.value=state.rotation||'normal';   // reflète la rotation enregistrée
   if(rot)rot.addEventListener('change',async()=>{
     const j=await post('/api/system/rotation',{value:rot.value});
     toast(j.ok?'Rotation appliquée':('Impossible — '+(j.reason||'')));});
@@ -2850,8 +2856,9 @@ function updGearBadge(){const b=document.getElementById('gearBadge');if(b)b.styl
 let toastT;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1500);}
 function tick(){const d=new Date();var topt={hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')};if(state.clockSec)topt.second='2-digit';document.getElementById('clk').textContent=d.toLocaleTimeString('fr-FR',topt);var de=document.getElementById('date');if(!de)return;if(state.dateFmt==='hidden'){de.style.display='none';}else{de.style.display='';var dopt=(state.dateFmt==='short')?{day:'2-digit',month:'2-digit',year:'numeric'}:{weekday:'long',day:'numeric',month:'long'};de.textContent=d.toLocaleDateString('fr-FR',dopt);}}
 tick();setInterval(tick,1000);
-// rafraîchit les infos système réelles tant que l'onglet Système est ouvert
-setInterval(()=>{if(document.getElementById('cpuV'))refreshSystem();},3000);
+// Le rafraîchissement système est piloté par startSysTimer(), démarré à
+// l'ouverture de l'onglet Système et arrêté à sa fermeture — pas de second
+// intervalle global ici (il doublait les appels /api/system).
 
 // état de la flotte (Uptime Kuma) : pastille bandeau + ligne Système
 function _svgWifi(on){
