@@ -112,6 +112,13 @@ def validate_addon(addon_dir: Path, store_mode: bool = False):
         errors.append("chaque élément de tiles doit être un objet")
     elif not tiles:
         warnings.append("tiles vide (addon sans tuile)")
+    else:
+        # name/icon sont déréférencés sans repli par le noyau (registry.tiles) :
+        # une tuile sans eux fait tomber tout /api/registry (KeyError).
+        for t in tiles:
+            if not t.get("name") or not t.get("icon"):
+                errors.append("tiles : chaque tuile doit porter `name` et `icon`")
+                break
 
     # category (optionnel) : si présent, doit appartenir à la liste figée
     cat = manifest.get("category")
