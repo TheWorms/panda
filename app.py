@@ -3,6 +3,7 @@ Kiosk Panda — application Flask (Phase 2).
 Serveur = source unique : config + PIN vivent côté serveur.
 Sécurité : session signée + PIN haché (werkzeug) + anti-bruteforce léger.
 """
+import copy
 import json
 import os
 import secrets
@@ -190,7 +191,10 @@ def _ck(*parts):
 
 
 def _load():
-    cfg = dict(DEFAULT_CONFIG)
+    # deepcopy : les valeurs imbriquées (installed, order, modules…) sont
+    # mutées en place ailleurs ; une copie superficielle polluerait le
+    # DEFAULT_CONFIG global dès qu'une clé manque dans config.json.
+    cfg = copy.deepcopy(DEFAULT_CONFIG)
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, encoding="utf-8") as fh:
@@ -348,7 +352,7 @@ def api_pin_verify():
 
 @app.route("/api/admin/verify", methods=["POST"])
 def api_admin_verify():
-    ip = request.remote_addr + ":admin"
+    ip = (request.remote_addr or "?") + ":admin"
     wait = _lock_remaining(ip)
     if wait:
         return jsonify(ok=False, wait=wait)
@@ -1376,11 +1380,9 @@ def api_config():
 
 def _primary_ip():
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))  # IP routable quelconque, aucun paquet réel
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))  # IP routable quelconque, aucun paquet réel
+            return s.getsockname()[0]
     except OSError:
         return "n/a"
 
@@ -1702,14 +1704,6 @@ def _backlight():
     except OSError:
         pass
     return None
-
-
-    try:
-        r = subprocess.run(["ddcutil", "--bus", bus, "setvcp", "10", str(pct)],
-                           capture_output=True, text=True, timeout=10)
-        return r.returncode == 0
-    except Exception:
-        return False
 
 
 @app.route("/api/system/display")
@@ -2626,7 +2620,11 @@ def api_volume():
 @require_auth
 def api_volume_set():
     j = request.get_json(force=True, silent=True) or {}
-    return jsonify(_volume_set(j.get("value", 50)))
+    try:
+        vol = int(j.get("value", 50))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "reason": "valeur invalide"}), 400
+    return jsonify(_volume_set(vol))
 
 
 def _bt_set_default_sink():
@@ -2737,7 +2735,8 @@ def api_bt_autoreconnect():
         if on and os.path.exists(flag):
             os.remove(flag)
         elif not on:
-            open(flag, "w").write("1")
+            with open(flag, "w") as fh:
+                fh.write("1")
     except Exception as e:
         return jsonify({"ok": False, "reason": str(e)[:80]})
     return jsonify({"ok": True, "on": on})
