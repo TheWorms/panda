@@ -56,7 +56,7 @@ MAX_ARCHIVE    = 80 * 1024 * 1024   # 80 Mo : garde-fou taille d'archive
 # Clé publique Ed25519 (base64) des releases — DOIT être identique à
 # PANDA_RELEASE_PUBKEY dans app.py. Générée par tools/gen-release-keys.py.
 # Vide = mise à jour signée non configurée : l'outil refuse de tourner.
-RELEASE_PUBKEY = ""
+RELEASE_PUBKEY = "3f7CFWjnbReZcA/sA7/pmRwhLrpOaXkrckCeR9/Toqo="
 
 # Ensemble « code » remplacé par une MAJ (exactement ce que déploie
 # install.sh). Tout le reste de APP_DIR est PRÉSERVÉ tel quel.
