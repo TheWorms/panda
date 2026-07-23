@@ -1859,7 +1859,7 @@ def api_selfupdate_run():
         # même où il redémarre le service — avant _wait_healthy, avant le
         # marqueur one-shot, avant le reboot final. --collect nettoie l'unit
         # transitoire une fois terminée (succès ou échec).
-        subprocess.Popen(["sudo", "-n", "systemd-run", "--unit=panda-update",
+        subprocess.Popen(["sudo", "-n", "/usr/bin/systemd-run", "--unit=panda-update",
                           "--collect", _SELFUPD_BIN],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          start_new_session=True)
