@@ -1790,6 +1790,7 @@ function secVersion(){
     const socle=(j.tiles||[]).filter(t=>t.source!=='store'&&t.type!=='internal').map(t=>t.nm||t.id);
     el.textContent=socle.length?Array.from(new Set(socle)).sort((a,b)=>a.localeCompare(b,'fr')).join(', '):'—';}).catch(()=>{});
   const _updMsg=document.getElementById('selfupdMsg'),_updBtn=document.getElementById('selfupdBtn'),_updChk=document.getElementById('selfupdCheck');
+  let _updCur='',_updLat='';   // versions courante/cible, pour l'overlay au lancement
   async function selfupdCheck(){
     if(_updMsg){_updMsg.textContent='Vérification…';_updMsg.style.color='';}
     if(_updBtn)_updBtn.style.display='none';
@@ -1798,6 +1799,7 @@ function secVersion(){
       if(!_updMsg)return;
       if(!d.ok){_updMsg.textContent='⚠ '+(d.reason||'vérification impossible');_updMsg.style.color='var(--warn)';return;}
       if(d.update){
+        _updCur=d.current||'';_updLat=d.latest||'';
         _updMsg.innerHTML='<span class="adbadge maj" style="margin-left:0">⬆ MISE À JOUR</span> v'+d.current+' → <b>v'+d.latest+'</b>'+(d.updater_ready?'':' · <span style="color:var(--warn)">outil panda-update absent sur la machine</span>');
         if(_updBtn&&d.updater_ready)_updBtn.style.display='';
       }else{
@@ -1811,9 +1813,10 @@ function secVersion(){
     _updBtn.disabled=true;_updBtn.textContent='Mise à jour…';
     try{
       const r=await fetch('/api/system/selfupdate',{method:'POST'});const d=await r.json();
-      if(d.ok){if(_updMsg){_updMsg.textContent='⏳ '+(d.msg||'Mise à jour en cours — le kiosk redémarre…');_updMsg.style.color='';}
-        // recharge la page quand le service revient
-        setTimeout(function poll(){fetch('/healthz').then(r=>r.json()).then(()=>location.reload()).catch(()=>setTimeout(poll,3000));},8000);
+      if(d.ok){
+        // Overlay plein écran (indépendant de cette section) : il prend le
+        // relais du suivi /healthz et distingue succès / rollback / pas-de-retour.
+        startUpdateOverlay(_updCur, _updLat);
       }else{if(_updMsg){_updMsg.textContent='✗ '+(d.reason||'échec');_updMsg.style.color='var(--bad)';}_updBtn.disabled=false;_updBtn.textContent='⬆ Mettre à jour';}
     }catch(e){if(_updMsg){_updMsg.textContent='✗ échec du lancement';_updMsg.style.color='var(--bad)';}_updBtn.disabled=false;_updBtn.textContent='⬆ Mettre à jour';}
   });
@@ -2854,6 +2857,81 @@ function resetIdle(){clearTimeout(idleT);clearTimeout(veilleT);if(state.autolock
 /* ---------- misc ---------- */
 function updGearBadge(){const b=document.getElementById('gearBadge');if(b)b.style.display='none';}
 let toastT;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1500);}
+
+/* ---- Mise à jour de Panda : overlay plein écran + bandeau post-MAJ ----------
+   L'overlay est ajouté à <body>, au-dessus de tout, et capte toute interaction :
+   il vit donc indépendamment de la section affichée (accueil, Store, réglages…)
+   et personne ne peut taper sur une interface en cours de bascule, où qu'il
+   soit dans le kiosk. Son polling /healthz lui est propre et continue quelle
+   que soit la navigation. */
+function _semArr(v){return String(v||'').split('.').map(n=>parseInt(n,10)||0);}
+function semverGt(a,b){const x=_semArr(a),y=_semArr(b),n=Math.max(x.length,y.length);
+  for(let i=0;i<n;i++){const d=(x[i]||0)-(y[i]||0);if(d)return d>0;}return false;}
+// Patience avant le cas « pas de retour » (cas 3). Doit couvrir le PIRE cas
+// complet de panda-update — téléchargements + extraction + pip éventuel +
+// restart + HEALTH_TIMEOUT (30 s) + éventuel chemin de rollback — et pas
+// seulement HEALTH_TIMEOUT. 240 s laisse une marge confortable (cf.
+// docs/self-update.md). Cadence de polling identique à l'existant : 3 s.
+const UPD_PATIENCE_MS=240000, UPD_POLL_MS=3000, UPD_START_MS=5000;
+let _updOv=null,_updPoll=null;
+function startUpdateOverlay(prev, expected){
+  if(_updOv)return;                                   // un seul overlay à la fois
+  const o=document.createElement('div');o.className='updov';
+  o.innerHTML='<div class="updcard"><div class="stbspin"></div>'+
+    '<div class="updttl">Mise à jour en cours…</div>'+
+    '<div class="updsub">Ne débranchez pas l\'écran. Le kiosk va redémarrer tout seul dans quelques instants.</div>'+
+    '<div class="upddots"><i></i><i></i><i></i></div></div>';
+  document.body.appendChild(o);_updOv=o;
+  const started=Date.now();let sawDown=false;
+  function stop(){if(_updPoll){clearTimeout(_updPoll);_updPoll=null;}}
+  function finalState(cls,ttl,sub,tap){
+    o.className='updov '+cls;
+    o.innerHTML='<div class="updcard"><div class="updttl">'+ttl+'</div>'+
+      '<div class="updsub">'+sub+'</div>'+
+      (tap?'<div class="updtap">Touchez l\'écran pour recharger</div>':'')+'</div>';
+    if(tap)o.addEventListener('click',()=>location.reload(),{once:true});
+  }
+  function schedule(){
+    if(Date.now()-started>UPD_PATIENCE_MS){stop();
+      finalState('bad','Le kiosk ne répond pas',
+        'La mise à jour prend plus de temps que prévu. Vérifiez le kiosk ou contactez un administrateur.',true);
+      return;}
+    _updPoll=setTimeout(poll,UPD_POLL_MS);
+  }
+  function poll(){
+    fetch('/healthz',{cache:'no-store'}).then(r=>r.json()).then(j=>{
+      if(j&&j.status==='ok'){
+        const v=j.version||'';
+        if(!prev)prev=v;                               // garde-fou : baseline si inconnue
+        if(semverGt(v,prev)){                          // version montée → succès
+          stop();o.className='updov ok';
+          o.innerHTML='<div class="updcard"><div class="updttl">Mise à jour réussie</div>'+
+            '<div class="updsub">Le kiosk redémarre…</div></div>';
+          setTimeout(()=>location.reload(),1500);return;}
+        if(sawDown){                                    // revenu après un arrêt, sans montée → rollback
+          stop();
+          finalState('warn','Mise à jour non appliquée',
+            'La mise à jour n\'a pas pu être appliquée. L\'ancienne version (v'+v+') a été restaurée automatiquement.',true);
+          return;}
+      }
+      schedule();                                      // sinon (ancien service encore là) : on patiente
+    }).catch(()=>{sawDown=true;schedule();});          // service injoignable = fenêtre de redémarrage
+  }
+  _updPoll=setTimeout(poll,UPD_START_MS);
+}
+function showUpdateBanner(version){
+  const b=document.createElement('div');b.className='updbanner';
+  b.innerHTML='✓ Nouvelle version installée avec succès — <b>v'+(version||'?')+'</b>';
+  document.body.appendChild(b);
+  requestAnimationFrame(()=>b.classList.add('show'));
+  const kill=()=>{b.classList.remove('show');setTimeout(()=>b.remove(),300);};
+  const t=setTimeout(kill,6000);
+  b.addEventListener('click',()=>{clearTimeout(t);kill();},{once:true});
+}
+async function checkUpdateDone(){
+  try{const r=await fetch('/api/system/update-done',{cache:'no-store'});const d=await r.json();
+    if(d&&d.ok&&d.pending)showUpdateBanner(d.version);}catch(e){}
+}
 function tick(){const d=new Date();var topt={hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')};if(state.clockSec)topt.second='2-digit';document.getElementById('clk').textContent=d.toLocaleTimeString('fr-FR',topt);var de=document.getElementById('date');if(!de)return;if(state.dateFmt==='hidden'){de.style.display='none';}else{de.style.display='';var dopt=(state.dateFmt==='short')?{day:'2-digit',month:'2-digit',year:'numeric'}:{weekday:'long',day:'numeric',month:'long'};de.textContent=d.toLocaleDateString('fr-FR',dopt);}}
 tick();setInterval(tick,1000);
 // Le rafraîchissement système est piloté par startSysTimer(), démarré à
@@ -2978,7 +3056,7 @@ async function boot(){
     const r=await fetch('/api/session');const s=await r.json();
     if(s.theme){state.theme=s.theme;document.documentElement.setAttribute('data-theme',s.theme);
       try{localStorage.setItem('panda-theme',s.theme);}catch(e){}}
-    if(s.authed){lock.classList.remove('show');await pullConfig();applyState();resetIdle();updateFleet();updateConnIcons();updateVolBtn();_volBtnBootRetry();startAgendaNotif();setupStoreTimer();if((state.storeCheck||'open')!=='manual')checkStoreUpdates(true);
+    if(s.authed){lock.classList.remove('show');await pullConfig();applyState();resetIdle();updateFleet();updateConnIcons();updateVolBtn();_volBtnBootRetry();startAgendaNotif();setupStoreTimer();if((state.storeCheck||'open')!=='manual')checkStoreUpdates(true);checkUpdateDone();
       let goto=null;try{goto=localStorage.getItem('panda-store-goto');localStorage.removeItem('panda-store-goto');}catch(e){}
       if(goto==='installed'){appTab='myapps';openSettings('apps');}
       let rsec=null;try{rsec=localStorage.getItem('panda-reload-sec');localStorage.removeItem('panda-reload-sec');}catch(e){}

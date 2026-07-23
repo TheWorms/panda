@@ -1863,6 +1863,43 @@ def api_selfupdate_run():
                     "msg": "Mise à jour lancée — le kiosk redémarre dans quelques instants."})
 
 
+# Marqueur one-shot déposé par panda-update après une bascule réussie. Il vit
+# sous data/ (préservé entre versions), donc l'état est porté par le SERVEUR :
+# le prochain chargement de l'interface — même sur un autre appareil que celui
+# qui a lancé la MAJ — peut confirmer l'installation. Consommé une seule fois.
+_UPDATE_MARKER = os.path.join(_registry.DATA_DIR, ".update-done.json")
+
+
+@app.route("/api/system/update-done")
+@require_auth
+def api_update_done():
+    """Expose et CONSOMME (one-shot) le marqueur de mise à jour réussie.
+
+    Lecture-suppression atomique : on revendique le fichier par os.rename avant
+    de le lire. Si deux onglets appellent en même temps, un seul gagne le rename
+    (l'autre reçoit pending:false) — le bandeau n'apparaît qu'une fois, ce qui
+    est acceptable (message purement informatif)."""
+    claim = f"{_UPDATE_MARKER}.claim-{os.getpid()}-{secrets.token_hex(4)}"
+    try:
+        os.rename(_UPDATE_MARKER, claim)   # revendication atomique
+    except OSError:
+        return jsonify({"ok": True, "pending": False})
+    version = ts = ""
+    try:
+        with open(claim, encoding="utf-8") as fh:
+            data = json.load(fh)
+        version = str(data.get("version", ""))
+        ts = str(data.get("ts", ""))
+    except (OSError, ValueError):
+        pass
+    finally:
+        try:
+            os.remove(claim)
+        except OSError:
+            pass
+    return jsonify({"ok": True, "pending": True, "version": version, "ts": ts})
+
+
 @app.route("/api/system/veille", methods=["POST"])
 @require_auth
 @require_admin

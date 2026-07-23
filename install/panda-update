@@ -436,6 +436,9 @@ def main():
         if not _wait_healthy(new_version):
             raise RuntimeError("le kiosk n'est pas revenu en bonne santé après la bascule")
 
+        # Succès confirmé : dépose le marqueur one-shot consommé par l'interface
+        # au prochain chargement pour afficher « nouvelle version installée ».
+        _write_update_marker(new_version, uid, gid)
         log.info("=== mise à jour réussie : %s → %s ===", cur_version, new_version)
     except Exception as e:
         # 10. Rollback automatique : jamais de kiosk mort.
@@ -457,6 +460,28 @@ def main():
         shutil.rmtree(work, ignore_errors=True)
         fcntl.flock(lockf, fcntl.LOCK_UN)
         lockf.close()
+
+
+def _write_update_marker(version, uid, gid):
+    """Dépose le marqueur one-shot confirmant la MAJ, lu puis supprimé par
+    l'interface (route /api/system/update-done).
+
+    Sous data/ (chemin PRÉSERVÉ, jamais dans CODE_PATHS), chown vers
+    l'utilisateur applicatif pour que Flask puisse le lire ET le supprimer.
+    Best-effort : un échec ici n'invalide pas la mise à jour déjà réussie."""
+    marker = os.path.join(APP_DIR, "data", ".update-done.json")
+    try:
+        payload = json.dumps({"version": version,
+                              "ts": datetime.now(timezone.utc).isoformat()},
+                             ensure_ascii=False)
+        tmp = marker + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+        os.replace(tmp, marker)          # publication atomique
+        os.chown(marker, uid, gid)
+        log.info("marqueur de confirmation déposé : %s", marker)
+    except OSError as e:
+        log.warning("marqueur de confirmation non déposé (%s) — sans gravité.", e)
 
 
 def _sha256_file(path):
