@@ -39,7 +39,7 @@ sudo install -o root -g root -m 0755 "$SELF" "$BIN"
 #    argument, NOPASSWD. Écriture atomique + validation visudo avant activation.
 echo "==> sudoers $SUDOERS"
 TMP="$(mktemp)"
-printf '%s ALL=(root) NOPASSWD: %s\n' "$USER_NAME" "$BIN" > "$TMP"
+printf '%s ALL=(root) NOPASSWD: /usr/bin/systemd-run --unit=panda-update --collect %s\n' "$USER_NAME" "$BIN" > "$TMP"
 if sudo visudo -cf "$TMP" >/dev/null; then
   sudo install -o root -g root -m 0440 "$TMP" "$SUDOERS"
   rm -f "$TMP"
