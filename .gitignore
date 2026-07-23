@@ -8,3 +8,4 @@ secret.key
 config.json
 !.claude/settings.json
 dist/
+.claude/
