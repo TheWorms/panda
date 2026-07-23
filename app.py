@@ -37,7 +37,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.11.0"
+APP_VERSION = "1.11.1"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -1812,34 +1812,45 @@ def api_brightness():
 _RELEASE_BASE = "https://github.com/TheWorms/panda/releases/latest/download/"
 _SELFUPD_BIN = "/usr/local/bin/panda-update"
 
-# Canal « beta » : releases publiées sur l'instance Forgejo interne. Forgejo n'a
-# pas d'équivalent au raccourci /releases/latest/download/ de GitHub : on passe
-# par l'API pour connaître le tag, puis on RECONSTRUIT l'URL de téléchargement
-# depuis notre propre base (l'API renvoie des URLs bâties sur le ROOT_URL de
-# l'instance, qui peut différer de l'hôte par lequel on l'appelle).
+# Canal « beta » : releases hébergées sur une instance Git personnelle
+# (API Forgejo/Gitea). Cette API n'offre pas le raccourci
+# /releases/latest/download/ : on lit le tag via l'API, puis on RECONSTRUIT
+# l'URL de téléchargement depuis l'origine saisie (l'API renvoie des URLs
+# bâties sur le ROOT_URL de l'instance, qui peut différer de l'hôte appelé).
 # La confiance ne vient PAS de l'hébergeur mais de la signature Ed25519 : un
 # canal supplémentaire n'élargit donc pas la surface d'attaque — au pire une
 # release non signée par la clé du socle est refusée avant toute écriture.
-DEFAULT_BETA_BASE = "https://taupe.lan"
-BETA_REPO = "theworms/panda"
+DEFAULT_BETA_BASE = ""      # aucun défaut : l'URL est saisie dans les réglages
+_SLUG_RE = _re.compile(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$")
 _TAG_RE = _re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def _upd_channel():
-    """« stable » (GitHub, public) ou « beta » (Forgejo interne)."""
+    """« stable » (releases publiques) ou « beta » (instance Git personnelle)."""
     return "beta" if (_load().get("updChannel") or "stable").strip() == "beta" else "stable"
 
 
-def _beta_base():
-    """Racine de l'instance Forgejo, schéma borné à http/https."""
-    u = (_load().get("updBetaUrl") or DEFAULT_BETA_BASE).strip()
+def _beta_parts():
+    """(origine, « owner/repo ») déduits de l'URL complète du dépôt beta.
+
+    Une seule valeur à saisir — rien n'est codé en dur, donc ce fichier ne
+    révèle aucune adresse interne. (None, None) si l'URL est absente ou
+    inexploitable ; le schéma est borné à http/https.
+    """
+    u = (_load().get("updBetaUrl") or "").strip().rstrip("/")
     if not (u.startswith("http://") or u.startswith("https://")):
-        u = DEFAULT_BETA_BASE
-    return u.rstrip("/")
+        return None, None
+    parts = u.split("/")
+    if len(parts) < 5:
+        return None, None
+    slug = "/".join(parts[-2:])
+    if not _SLUG_RE.match(slug):
+        return None, None
+    return "/".join(parts[:-2]), slug
 
 
 def _beta_headers():
-    """Jeton de lecture — le dépôt panda sur Taupe est privé."""
+    """Jeton de lecture, si le dépôt beta est privé."""
     tok = (_load().get("updBetaToken") or "").strip()
     return {"Authorization": f"token {tok}"} if tok else {}
 
@@ -1851,19 +1862,22 @@ def _release_source():
     """
     if _upd_channel() != "beta":
         return _RELEASE_BASE, {}
-    base, hdr = _beta_base(), _beta_headers()
+    origin, slug = _beta_parts()
+    if not origin:
+        raise RuntimeError("URL du dépôt beta absente ou invalide (⚙ Version)")
+    hdr = _beta_headers()
     try:
-        r = requests.get(f"{base}/api/v1/repos/{BETA_REPO}/releases/latest",
+        r = requests.get(f"{origin}/api/v1/repos/{slug}/releases/latest",
                          headers=hdr, verify=_store_verify(), timeout=8)
         r.raise_for_status()
         tag = str(r.json().get("tag_name") or "").strip()
     except requests.RequestException as e:
-        raise RuntimeError(f"Forgejo injoignable ({type(e).__name__})") from e
+        raise RuntimeError(f"dépôt beta injoignable ({type(e).__name__})") from e
     except ValueError as e:
-        raise RuntimeError("réponse Forgejo illisible") from e
+        raise RuntimeError("réponse du dépôt beta illisible") from e
     if not _TAG_RE.match(tag):
         raise RuntimeError("aucune release beta publiée (ou tag invalide)")
-    return f"{base}/{BETA_REPO}/releases/download/{tag}/", hdr
+    return f"{origin}/{slug}/releases/download/{tag}/", hdr
 
 
 @app.route("/api/system/selfupdate")
@@ -1892,9 +1906,8 @@ def api_selfupdate_check():
                           verify=_store_verify(), timeout=8)
         rs.raise_for_status()
     except requests.RequestException as e:
-        src = "Forgejo" if chan == "beta" else "GitHub"
         return jsonify({"ok": False, "channel": chan,
-                        "reason": f"{src} injoignable ({type(e).__name__})"})
+                        "reason": f"source de mise à jour injoignable ({type(e).__name__})"})
     if not _verify_release_sig(blob, rs.text):
         return jsonify({"ok": False, "channel": chan,
                         "reason": "signature de la release invalide — refusée"})

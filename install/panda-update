@@ -44,14 +44,12 @@ APP_DIR        = "/opt/panda"
 SERVICE        = "panda"
 HEALTH_URL     = "http://127.0.0.1:8090/healthz"
 RELEASE_BASE   = "https://github.com/TheWorms/panda/releases/latest/download/"
-# Canal « beta » : releases sur l'instance Forgejo interne. Le canal est lu dans
+# Canal « beta » : releases sur une instance Git personnelle. Le canal est lu dans
 # config.json (appartient à l'utilisateur applicatif). Ce fichier ne fait que
 # désigner OÙ chercher : la signature Ed25519 reste le seul juge de ce qui est
 # installé, donc un config.json altéré ne peut que faire ÉCHOUER la mise à jour,
 # jamais en faire passer une non signée par la clé du socle.
 CONFIG_PATH    = "/opt/panda/config.json"
-BETA_BASE_DEF  = "https://taupe.lan"
-BETA_REPO      = "theworms/panda"
 BACKUP_DIR     = "/var/backups/panda"
 LOCK_PATH      = "/run/panda-update.lock"
 LOG_PATH       = "/var/log/panda-update.log"
@@ -125,26 +123,32 @@ def _resolve_source():
     except (OSError, ValueError):
         cfg = {}
     if not isinstance(cfg, dict) or (cfg.get("updChannel") or "stable").strip() != "beta":
-        log.info("canal : stable (GitHub)")
+        log.info("canal : stable")
         return RELEASE_BASE, {}
-    base = str(cfg.get("updBetaUrl") or BETA_BASE_DEF).strip()
-    if not (base.startswith("http://") or base.startswith("https://")):
-        base = BETA_BASE_DEF
-    base = base.rstrip("/")
+    base = str(cfg.get("updBetaUrl") or "").strip().rstrip("/")
+    parts = base.split("/")
+    slug = "/".join(parts[-2:]) if len(parts) >= 5 else ""
+    ok_scheme = base.startswith("http://") or base.startswith("https://")
+    if not ok_scheme or not re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", slug):
+        _fail("canal beta : URL du dépôt absente ou mal formée "
+              "(attendu https://hôte/utilisateur/depot).")
+        return RELEASE_BASE, {}          # _fail() sort ; garde-fou si ce n'était plus le cas
+    origin = "/".join(parts[:-2])
     tok = str(cfg.get("updBetaToken") or "").strip()
     hdr = {"Authorization": f"token {tok}"} if tok else {}
-    api = f"{base}/api/v1/repos/{BETA_REPO}/releases/latest"
+    api = f"{origin}/api/v1/repos/{slug}/releases/latest"
     req = urllib.request.Request(api, headers=dict(hdr, **{"User-Agent": "panda-update"}))
-    tag = ""   # jamais non liée : _fail() sort, mais on ne s'appuie pas dessus
     try:
         with urllib.request.urlopen(req, timeout=DL_TIMEOUT, context=_ssl_ctx()) as resp:
             tag = str(json.loads(resp.read(256 * 1024).decode("utf-8")).get("tag_name") or "").strip()
     except (urllib.error.URLError, ssl.SSLError, ValueError, OSError, AttributeError) as e:
-        _fail(f"canal beta : release introuvable sur {base} ({e})")
+        _fail(f"canal beta : release introuvable ({e})")
+        return RELEASE_BASE, {}
     if not re.match(r"^[A-Za-z0-9._-]+$", tag):
         _fail("canal beta : tag de release invalide ou aucune release publiée.")
-    log.info("canal : beta (Forgejo %s, tag %s)", base, tag)
-    return f"{base}/{BETA_REPO}/releases/download/{tag}/", hdr
+        return RELEASE_BASE, {}
+    log.info("canal : beta (%s, tag %s)", slug, tag)
+    return f"{origin}/{slug}/releases/download/{tag}/", hdr
 
 
 def _download(name, dest_path=None, max_bytes=None):

@@ -1766,12 +1766,12 @@ function secVersion(){
     '<div class="setrow"><div class="lft"><div class="t">Kiosk « '+KIOSK_NAME+' »</div>'+
     '<div class="d">Version <span id="verV">…</span> · SDK addons kiosk_api <span id="verApi">…</span></div></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Canal de mise à jour</div>'+
-    '<div class="d">« Stable » : les releases publiées sur GitHub. « Beta » : les releases de l\'instance Forgejo interne, pour tester avant publication. Les deux sont signées par la même clé — une release non signée est refusée quel que soit le canal.</div></div>'+
+    '<div class="d">« Stable » : les releases publiques. « Beta » : les releases de votre propre instance Git (URL complète du dépôt), pour tester avant publication. Les deux sont signées par la même clé — une release non signée est refusée quel que soit le canal.</div></div>'+
     '<div style="display:flex;flex-direction:column;gap:7px;max-width:340px;width:100%">'+
-    '<select class="inp" id="updChanSel"><option value="stable"'+((state.updChannel||'stable')!=='beta'?' selected':'')+'>Stable — GitHub</option>'+
-    '<option value="beta"'+(state.updChannel==='beta'?' selected':'')+'>Beta — Forgejo</option></select>'+
+    '<select class="inp" id="updChanSel"><option value="stable"'+((state.updChannel||'stable')!=='beta'?' selected':'')+'>Stable</option>'+
+    '<option value="beta"'+(state.updChannel==='beta'?' selected':'')+'>Beta</option></select>'+
     '<div id="updBetaBox" style="display:'+(state.updChannel==='beta'?'flex':'none')+';flex-direction:column;gap:7px">'+
-    '<input class="inp" id="updBetaUrlInp" placeholder="https://taupe.lan" value="'+((state.updBetaUrl||'').replace(/"/g,'&quot;'))+'">'+
+    '<input class="inp" id="updBetaUrlInp" placeholder="https://git.exemple.lan/utilisateur/panda" value="'+((state.updBetaUrl||'').replace(/"/g,'&quot;'))+'">'+
     '<input class="inp" id="updBetaTokInp" type="password" placeholder="Jeton de lecture (dépôt privé)" value="'+((state.updBetaToken||'').replace(/"/g,'&quot;'))+'">'+
     '</div></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Mise à jour de Panda</div>'+

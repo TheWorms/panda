@@ -119,17 +119,22 @@ jour** :
 
 | Canal | Source | Accès |
 |---|---|---|
-| **Stable** (défaut) | releases GitHub `TheWorms/panda` | public, aucun jeton |
-| **Beta** | releases Forgejo interne (`https://taupe.lan`) | dépôt privé, **jeton de lecture requis** |
+| **Stable** (défaut) | releases publiques du dépôt amont | aucun jeton |
+| **Beta** | releases d'une instance Git personnelle (API Forgejo/Gitea) | jeton de lecture si le dépôt est privé |
+
+Le canal beta se règle avec **une seule valeur** : l'URL complète du dépôt
+(`https://…/utilisateur/panda`). L'origine et le couple `utilisateur/dépôt` en
+sont déduits — rien n'est codé en dur, donc aucune adresse interne n'apparaît
+dans le code.
 
 Les deux sont signées par **la même clé**. La confiance ne vient pas de
 l'hébergeur mais de la signature : changer de canal ne change donc rien au
 modèle de sécurité, et une release non signée par la clé du socle est refusée
 quel que soit le canal.
 
-Forgejo n'expose **pas** l'équivalent du raccourci `/releases/latest/download/`
-de GitHub. Le canal beta interroge donc l'API
-(`/api/v1/repos/theworms/panda/releases/latest`) pour lire le `tag_name`, puis
+L'API Forgejo/Gitea n'expose **pas** l'équivalent du raccourci
+`/releases/latest/download/`. Le canal beta interroge donc
+`/api/v1/repos/<utilisateur>/<dépôt>/releases/latest` pour lire le `tag_name`, puis
 **reconstruit** l'URL des assets à partir de la base configurée — et non à
 partir des `browser_download_url` renvoyées par l'API, qui sont bâties sur le
 `ROOT_URL` de l'instance et peuvent viser un hôte différent de celui par lequel
@@ -141,9 +146,9 @@ fichier appartient à l'utilisateur applicatif : il désigne **où** chercher, p
 mise à jour, jamais en faire passer une non signée. Le jeton beta n'est jamais
 envoyé au canal stable.
 
-> Le miroir Forgejo → GitHub réplique les **refs git** (branches, tags), pas les
-> pièces jointes de release. Une release beta publiée sur Taupe n'apparaît donc
-> pas d'elle-même sur GitHub : la publication stable reste un geste distinct.
+> Un miroir de dépôt réplique les **refs git** (branches, tags), pas les pièces
+> jointes de release. Une release publiée sur l'instance beta n'apparaît donc
+> pas d'elle-même en amont : la publication stable reste un geste distinct.
 
 ## Publier une release (mainteneur)
 
