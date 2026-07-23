@@ -2920,13 +2920,14 @@ function startUpdateOverlay(prev, expected){
   _updPoll=setTimeout(poll,UPD_START_MS);
 }
 function showUpdateBanner(version){
-  const b=document.createElement('div');b.className='updbanner';
-  b.innerHTML='✓ Nouvelle version installée avec succès — <b>v'+(version||'?')+'</b>';
+  const b=document.createElement('div');b.className='updbanner';b.style.zIndex='1000000';
+  b.innerHTML='✓ Nouvelle version installée avec succès — <b>v'+(version||'?')+'</b><span class="updbannerclose">Toucher pour fermer</span>';
   document.body.appendChild(b);
   requestAnimationFrame(()=>b.classList.add('show'));
+  // Reste affiché jusqu'au tap : pas de disparition automatique, pour être
+  // visible même si l'écran a fini de se redessiner après le déverrouillage.
   const kill=()=>{b.classList.remove('show');setTimeout(()=>b.remove(),300);};
-  const t=setTimeout(kill,6000);
-  b.addEventListener('click',()=>{clearTimeout(t);kill();},{once:true});
+  b.addEventListener('click',kill,{once:true});
 }
 async function checkUpdateDone(){
   try{const r=await fetch('/api/system/update-done',{cache:'no-store'});const d=await r.json();
