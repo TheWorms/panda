@@ -6,3 +6,4 @@ addons/
 secret.key
 *.tar.gz
 config.json
+!.claude/settings.json
