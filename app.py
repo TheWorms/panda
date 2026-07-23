@@ -37,7 +37,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.10.4"
+APP_VERSION = "1.10.5"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -1854,7 +1854,13 @@ def api_selfupdate_run():
         return jsonify({"ok": False,
                         "reason": "outil panda-update absent — installe-le d'abord (voir doc)"})
     try:
-        subprocess.Popen(["sudo", "-n", _SELFUPD_BIN],
+        # systemd-run sort panda-update du cgroup de panda.service : sans ça,
+        # KillMode=control-group (défaut systemd) tue panda-update au moment
+        # même où il redémarre le service — avant _wait_healthy, avant le
+        # marqueur one-shot, avant le reboot final. --collect nettoie l'unit
+        # transitoire une fois terminée (succès ou échec).
+        subprocess.Popen(["sudo", "-n", "systemd-run", "--unit=panda-update",
+                          "--collect", _SELFUPD_BIN],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          start_new_session=True)
     except OSError as e:
