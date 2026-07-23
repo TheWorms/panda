@@ -382,6 +382,7 @@ def main():
 
     work = tempfile.mkdtemp(prefix=".panda-upd-", dir=APP_DIR)  # même FS (bascule atomique)
     backup_arch = None
+    succeeded = False
     try:
         # 4. Téléchargement + vérification d'intégrité de l'archive.
         zip_path = os.path.join(work, "archive.zip")
@@ -440,6 +441,7 @@ def main():
         # au prochain chargement pour afficher « nouvelle version installée ».
         _write_update_marker(new_version, uid, gid)
         log.info("=== mise à jour réussie : %s → %s ===", cur_version, new_version)
+        succeeded = True
     except Exception as e:
         # 10. Rollback automatique : jamais de kiosk mort.
         log.error("échec de la mise à jour : %s", e)
@@ -460,6 +462,20 @@ def main():
         shutil.rmtree(work, ignore_errors=True)
         fcntl.flock(lockf, fcntl.LOCK_UN)
         lockf.close()
+
+    if succeeded:
+        # 11. Redémarrage COMPLET du système, seulement après santé confirmée.
+        # Un simple restart du service ne suffit pas toujours à faire recharger
+        # le JS/CSS du kiosk par Chromium (cache navigateur) ; un reboot garantit
+        # un écran entièrement frais. Ne se produit qu'après rollback écarté :
+        # si la mise à jour a échoué, ce bloc n'est jamais atteint.
+        log.info("redémarrage complet du système pour un kiosk entièrement frais…")
+        try:
+            _run(["systemctl", "reboot"], check=True)
+        except Exception as e:
+            log.error("échec du déclenchement du reboot (%s) — le service reste "
+                      "actif à la nouvelle version, mais le kiosk n'a pas été "
+                      "rafraîchi ; un reboot manuel peut être nécessaire.", e)
 
 
 def _write_update_marker(version, uid, gid):
