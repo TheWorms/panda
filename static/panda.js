@@ -24,7 +24,7 @@ async function loadRegistry(){
   return false;
 }
 
-let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',veilleMode:'off',veilleOff:0,font:'system'};
+let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',updChannel:'stable',updBetaUrl:'',updBetaToken:'',veilleMode:'off',veilleOff:0,font:'system'};
 function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
 /* Icônes Tabler : mapping emoji → nom d'icône, + helper de rendu.
    Fallback : un emoji non mappé est affiché tel quel. ic() renvoie du HTML
@@ -55,7 +55,7 @@ function sanitize(){
 let pushT;
 function save(){
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,veilleMode:state.veilleMode,veilleOff:state.veilleOff,font:state.font})}).catch(()=>{});},250);
+  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,font:state.font})}).catch(()=>{});},250);
 }
 async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){Object.assign(state,await r.json());sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
@@ -1337,6 +1337,7 @@ const meteoGeoPicker=()=>{
   document.getElementById('cfgSave').addEventListener('click',async()=>{
     await saveCfg(a);
     startAgendaNotif();   // les hooks background rafraîchissent leurs surfaces avec la nouvelle config
+    _auiBackground();     // ... y compris ceux des addons (ex. pack d'icones meteo dans #wxBar)
   });
   const tb=document.getElementById('cfgTest');
   if(tb)tb.addEventListener('click',async()=>{await testCfg(a);
@@ -1764,6 +1765,15 @@ function secVersion(){
   setcontent.innerHTML='<h4>Version</h4>'+
     '<div class="setrow"><div class="lft"><div class="t">Kiosk « '+KIOSK_NAME+' »</div>'+
     '<div class="d">Version <span id="verV">…</span> · SDK addons kiosk_api <span id="verApi">…</span></div></div></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Canal de mise à jour</div>'+
+    '<div class="d">« Stable » : les releases publiées sur GitHub. « Beta » : les releases de l\'instance Forgejo interne, pour tester avant publication. Les deux sont signées par la même clé — une release non signée est refusée quel que soit le canal.</div></div>'+
+    '<div style="display:flex;flex-direction:column;gap:7px;max-width:340px;width:100%">'+
+    '<select class="inp" id="updChanSel"><option value="stable"'+((state.updChannel||'stable')!=='beta'?' selected':'')+'>Stable — GitHub</option>'+
+    '<option value="beta"'+(state.updChannel==='beta'?' selected':'')+'>Beta — Forgejo</option></select>'+
+    '<div id="updBetaBox" style="display:'+(state.updChannel==='beta'?'flex':'none')+';flex-direction:column;gap:7px">'+
+    '<input class="inp" id="updBetaUrlInp" placeholder="https://taupe.lan" value="'+((state.updBetaUrl||'').replace(/"/g,'&quot;'))+'">'+
+    '<input class="inp" id="updBetaTokInp" type="password" placeholder="Jeton de lecture (dépôt privé)" value="'+((state.updBetaToken||'').replace(/"/g,'&quot;'))+'">'+
+    '</div></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Mise à jour de Panda</div>'+
     '<div class="d" id="selfupdMsg">Vérification…</div></div>'+
     '<div style="display:flex;gap:9px;align-items:center">'+
@@ -1797,17 +1807,28 @@ function secVersion(){
     try{
       const r=await fetch('/api/system/selfupdate');const d=await r.json();
       if(!_updMsg)return;
-      if(!d.ok){_updMsg.textContent='⚠ '+(d.reason||'vérification impossible');_updMsg.style.color='var(--warn)';return;}
+      const _ch=(d.channel==='beta')?' <span class="adbadge" style="margin-left:0">BETA</span>':'';
+      if(!d.ok){_updMsg.innerHTML='⚠ '+(d.reason||'vérification impossible')+_ch;_updMsg.style.color='var(--warn)';return;}
       if(d.update){
         _updCur=d.current||'';_updLat=d.latest||'';
-        _updMsg.innerHTML='<span class="adbadge maj" style="margin-left:0">⬆ MISE À JOUR</span> v'+d.current+' → <b>v'+d.latest+'</b>'+(d.updater_ready?'':' · <span style="color:var(--warn)">outil panda-update absent sur la machine</span>');
+        _updMsg.innerHTML='<span class="adbadge maj" style="margin-left:0">⬆ MISE À JOUR</span> v'+d.current+' → <b>v'+d.latest+'</b>'+_ch+(d.updater_ready?'':' · <span style="color:var(--warn)">outil panda-update absent sur la machine</span>');
         if(_updBtn&&d.updater_ready)_updBtn.style.display='';
       }else{
-        _updMsg.textContent='✓ Panda est à jour (v'+d.current+')';_updMsg.style.color='var(--green)';
+        _updMsg.innerHTML='✓ Panda est à jour (v'+d.current+')'+_ch;_updMsg.style.color='var(--green)';
       }
     }catch(e){if(_updMsg){_updMsg.textContent='⚠ vérification impossible';_updMsg.style.color='var(--warn)';}}
   }
   if(_updChk)_updChk.addEventListener('click',selfupdCheck);
+  const _chanSel=document.getElementById('updChanSel');
+  if(_chanSel)_chanSel.addEventListener('change',()=>{
+    state.updChannel=_chanSel.value;save();
+    const b=document.getElementById('updBetaBox');if(b)b.style.display=_chanSel.value==='beta'?'flex':'none';
+    setTimeout(selfupdCheck,300);   // laisse le POST /api/config partir avant de revérifier
+  });
+  const _bUrl=document.getElementById('updBetaUrlInp');
+  if(_bUrl)_bUrl.addEventListener('change',()=>{state.updBetaUrl=_bUrl.value.trim();save();setTimeout(selfupdCheck,300);});
+  const _bTok=document.getElementById('updBetaTokInp');
+  if(_bTok)_bTok.addEventListener('change',()=>{state.updBetaToken=_bTok.value.trim();save();setTimeout(selfupdCheck,300);});
   if(_updBtn)_updBtn.addEventListener('click',async()=>{
     if(!confirm('Mettre à jour Panda maintenant ? Le kiosk va redémarrer.'))return;
     _updBtn.disabled=true;_updBtn.textContent='Mise à jour…';

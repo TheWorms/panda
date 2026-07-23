@@ -37,7 +37,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.10.15"
+APP_VERSION = "1.11.0"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -57,7 +57,7 @@ STORE_OFFICIAL_PUBKEY = "8naRKWwUoxagk+OHZ9IdXGPcmsZGmmQo79BZXCEwa4c="
 # release publiée) : la vérification et l'outil refusent alors proprement.
 PANDA_RELEASE_PUBKEY = "3f7CFWjnbReZcA/sA7/pmRwhLrpOaXkrckCeR9/Toqo="
 ALLOWED_KEYS = {"installed", "hidden", "order", "railOn", "connBar", "theme", "ntp",
-                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "catColors", "catIcons", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "veilleOff", "font", "railMode", "timerDisplay"}
+                "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "catColors", "catIcons", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "veilleOff", "font", "railMode", "timerDisplay", "updChannel", "updBetaUrl", "updBetaToken"}
 import registry as _registry
 
 _REGISTRY, _REGISTRY_ERRORS = _registry.load()
@@ -1812,6 +1812,59 @@ def api_brightness():
 _RELEASE_BASE = "https://github.com/TheWorms/panda/releases/latest/download/"
 _SELFUPD_BIN = "/usr/local/bin/panda-update"
 
+# Canal « beta » : releases publiées sur l'instance Forgejo interne. Forgejo n'a
+# pas d'équivalent au raccourci /releases/latest/download/ de GitHub : on passe
+# par l'API pour connaître le tag, puis on RECONSTRUIT l'URL de téléchargement
+# depuis notre propre base (l'API renvoie des URLs bâties sur le ROOT_URL de
+# l'instance, qui peut différer de l'hôte par lequel on l'appelle).
+# La confiance ne vient PAS de l'hébergeur mais de la signature Ed25519 : un
+# canal supplémentaire n'élargit donc pas la surface d'attaque — au pire une
+# release non signée par la clé du socle est refusée avant toute écriture.
+DEFAULT_BETA_BASE = "https://taupe.lan"
+BETA_REPO = "theworms/panda"
+_TAG_RE = _re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _upd_channel():
+    """« stable » (GitHub, public) ou « beta » (Forgejo interne)."""
+    return "beta" if (_load().get("updChannel") or "stable").strip() == "beta" else "stable"
+
+
+def _beta_base():
+    """Racine de l'instance Forgejo, schéma borné à http/https."""
+    u = (_load().get("updBetaUrl") or DEFAULT_BETA_BASE).strip()
+    if not (u.startswith("http://") or u.startswith("https://")):
+        u = DEFAULT_BETA_BASE
+    return u.rstrip("/")
+
+
+def _beta_headers():
+    """Jeton de lecture — le dépôt panda sur Taupe est privé."""
+    tok = (_load().get("updBetaToken") or "").strip()
+    return {"Authorization": f"token {tok}"} if tok else {}
+
+
+def _release_source():
+    """(base des assets terminée par « / », en-têtes) selon le canal.
+
+    Lève RuntimeError si le canal beta ne peut pas être résolu.
+    """
+    if _upd_channel() != "beta":
+        return _RELEASE_BASE, {}
+    base, hdr = _beta_base(), _beta_headers()
+    try:
+        r = requests.get(f"{base}/api/v1/repos/{BETA_REPO}/releases/latest",
+                         headers=hdr, verify=_store_verify(), timeout=8)
+        r.raise_for_status()
+        tag = str(r.json().get("tag_name") or "").strip()
+    except requests.RequestException as e:
+        raise RuntimeError(f"Forgejo injoignable ({type(e).__name__})") from e
+    except ValueError as e:
+        raise RuntimeError("réponse Forgejo illisible") from e
+    if not _TAG_RE.match(tag):
+        raise RuntimeError("aucune release beta publiée (ou tag invalide)")
+    return f"{base}/{BETA_REPO}/releases/download/{tag}/", hdr
+
 
 @app.route("/api/system/selfupdate")
 @require_auth
@@ -1825,24 +1878,34 @@ def api_selfupdate_check():
     if not PANDA_RELEASE_PUBKEY:
         return jsonify({"ok": False,
                         "reason": "mise à jour signée non configurée sur ce socle"})
+    chan = _upd_channel()
     try:
-        r = requests.get(_RELEASE_BASE + "release.json", timeout=8)
+        base, hdr = _release_source()
+    except RuntimeError as e:
+        return jsonify({"ok": False, "channel": chan, "reason": str(e)})
+    try:
+        r = requests.get(base + "release.json", headers=hdr,
+                         verify=_store_verify(), timeout=8)
         r.raise_for_status()
         blob = r.content
-        rs = requests.get(_RELEASE_BASE + "release.json.sig", timeout=8)
+        rs = requests.get(base + "release.json.sig", headers=hdr,
+                          verify=_store_verify(), timeout=8)
         rs.raise_for_status()
     except requests.RequestException as e:
-        return jsonify({"ok": False, "reason": f"GitHub injoignable ({type(e).__name__})"})
+        src = "Forgejo" if chan == "beta" else "GitHub"
+        return jsonify({"ok": False, "channel": chan,
+                        "reason": f"{src} injoignable ({type(e).__name__})"})
     if not _verify_release_sig(blob, rs.text):
-        return jsonify({"ok": False, "reason": "signature de la release invalide — refusée"})
+        return jsonify({"ok": False, "channel": chan,
+                        "reason": "signature de la release invalide — refusée"})
     try:
         latest = str(json.loads(blob.decode("utf-8"))["version"])
     except (ValueError, KeyError, UnicodeDecodeError):
-        return jsonify({"ok": False, "reason": "release.json illisible"})
+        return jsonify({"ok": False, "channel": chan, "reason": "release.json illisible"})
     upd = _semver(latest) > _semver(APP_VERSION)
     ready = os.path.isfile(_SELFUPD_BIN)
-    return jsonify({"ok": True, "current": APP_VERSION, "latest": latest,
-                    "update": upd, "updater_ready": ready})
+    return jsonify({"ok": True, "channel": chan, "current": APP_VERSION,
+                    "latest": latest, "update": upd, "updater_ready": ready})
 
 
 @app.route("/api/system/selfupdate", methods=["POST"])
