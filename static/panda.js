@@ -2926,12 +2926,22 @@ function showUpdateBanner(version){
   requestAnimationFrame(()=>b.classList.add('show'));
   // Reste affiché jusqu'au tap : pas de disparition automatique, pour être
   // visible même si l'écran a fini de se redessiner après le déverrouillage.
-  const kill=()=>{b.classList.remove('show');setTimeout(()=>b.remove(),300);};
+  const kill=()=>{try{sessionStorage.removeItem('pandaUpdDone');}catch(e){}
+    b.classList.remove('show');setTimeout(()=>b.remove(),300);};
   b.addEventListener('click',kill,{once:true});
 }
 async function checkUpdateDone(){
-  try{const r=await fetch('/api/system/update-done',{cache:'no-store'});const d=await r.json();
-    if(d&&d.ok&&d.pending)showUpdateBanner(d.version);}catch(e){}
+  try{
+    // Persiste à travers un reload de page : le marqueur serveur est one-shot,
+    // mais un rechargement juste après le déverrouillage escamotait le bandeau.
+    const saved=sessionStorage.getItem('pandaUpdDone');
+    if(saved!==null){showUpdateBanner(saved);return;}
+    const r=await fetch('/api/system/update-done',{cache:'no-store'});const d=await r.json();
+    if(d&&d.ok&&d.pending){
+      try{sessionStorage.setItem('pandaUpdDone',d.version||'');}catch(e){}
+      showUpdateBanner(d.version);
+    }
+  }catch(e){}
 }
 function tick(){const d=new Date();var topt={hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')};if(state.clockSec)topt.second='2-digit';document.getElementById('clk').textContent=d.toLocaleTimeString('fr-FR',topt);var de=document.getElementById('date');if(!de)return;if(state.dateFmt==='hidden'){de.style.display='none';}else{de.style.display='';var dopt=(state.dateFmt==='short')?{day:'2-digit',month:'2-digit',year:'numeric'}:{weekday:'long',day:'numeric',month:'long'};de.textContent=d.toLocaleDateString('fr-FR',dopt);}}
 tick();setInterval(tick,1000);
