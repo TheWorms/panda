@@ -37,7 +37,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.10.9"
+APP_VERSION = "1.10.10"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -1877,8 +1877,10 @@ _UPDATE_MARKER = os.path.join(_registry.DATA_DIR, ".update-done.json")
 
 
 @app.route("/api/system/update-done")
-@require_auth
 def api_update_done():
+    # Pas de @require_auth : le bandeau doit s'afficher dès l'écran de PIN
+    # (aucune session à ce stade). L'info exposée — un numéro de version —
+    # est déjà publique via /healthz.
     """Expose et CONSOMME (one-shot) le marqueur de mise à jour réussie.
 
     Lecture-suppression atomique : on revendique le fichier par os.rename avant
