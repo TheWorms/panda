@@ -55,7 +55,7 @@ STORE_OFFICIAL_PUBKEY = "8naRKWwUoxagk+OHZ9IdXGPcmsZGmmQo79BZXCEwa4c="
 # poste du mainteneur. DOIT être identique à RELEASE_PUBKEY dans
 # install/panda-update. Vide = mise à jour signée non configurée (fork sans
 # release publiée) : la vérification et l'outil refusent alors proprement.
-PANDA_RELEASE_PUBKEY = ""
+PANDA_RELEASE_PUBKEY = "3f7CFWjnbReZcA/sA7/pmRwhLrpOaXkrckCeR9/Toqo="
 ALLOWED_KEYS = {"installed", "hidden", "order", "railOn", "connBar", "theme", "ntp",
                 "autolock", "lockEnabled", "names", "catOrder", "vkb", "agCals", "radioFav", "timers", "transFav", "delMode", "timerSound", "veille", "brightness", "rotation", "appCat", "catCustom", "catNames", "catColors", "catIcons", "fontScale", "volBar", "btAutoReconnect", "btKeepAlive", "lang", "browserPw", "iconStyle", "wifiInd", "btInd", "clockFmt", "clockSec", "dateFmt", "catHidden", "storeUrl", "storeToken", "storeCheck", "storeMode", "storePubkey", "storeNoSig", "veilleMode", "veilleOff", "font", "railMode", "timerDisplay"}
 import registry as _registry
