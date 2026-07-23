@@ -1,0 +1,479 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+"""panda-update — met à jour Panda depuis une release GitHub *signée* (Ed25519).
+
+Exécuté EN ROOT via sudo (entrée sudoers dédiée), SANS argument. Télécharge la
+dernière release publiée, en vérifie l'authenticité (signature Ed25519) et
+l'intégrité (SHA-256) AVANT toute écriture, sauvegarde l'installation, bascule
+le code de façon atomique, redémarre le service et valide que le kiosk répond —
+avec rollback automatique si quoi que ce soit tourne mal. Une mise à jour ratée
+ne doit jamais laisser un écran mural mort.
+
+SÉCURITÉ — ce script tourne en root et applique du code téléchargé :
+  * Interpréteur système /usr/bin/python3 (root), JAMAIS le venv de l'app :
+    le venv appartient à l'utilisateur applicatif ; l'exécuter en root serait
+    une élévation de privilèges triviale.
+  * Ce fichier doit rester root:root 0755, non inscriptible par l'utilisateur
+    applicatif ni par le service Flask (cf. install/install-updater.sh).
+  * Aucune donnée distante n'est interpolée dans un shell : subprocess reçoit
+    des listes d'arguments, jamais shell=True.
+  * L'archive n'est jamais « jouée » (pas d'exécution d'installeur embarqué) :
+    on copie des fichiers, rien de plus.
+Détails et procédure de publication : docs/self-update.md.
+"""
+import fcntl
+import hashlib
+import json
+import logging
+import os
+import re
+import shutil
+import ssl
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import zipfile
+from datetime import datetime, timezone
+
+# --- Constantes de déploiement (cohérentes avec install/install.sh) ----------
+APP_DIR        = "/opt/panda"
+SERVICE        = "panda"
+HEALTH_URL     = "http://127.0.0.1:8090/healthz"
+RELEASE_BASE   = "https://github.com/TheWorms/panda/releases/latest/download/"
+BACKUP_DIR     = "/var/backups/panda"
+LOCK_PATH      = "/run/panda-update.lock"
+LOG_PATH       = "/var/log/panda-update.log"
+CA_BUNDLE      = "/etc/ssl/certs/ca-certificates.crt"  # trust store système
+KEEP_BACKUPS   = 5
+HEALTH_TIMEOUT = 30    # s de polling /healthz après restart
+DL_TIMEOUT     = 30    # s par téléchargement
+MAX_ARCHIVE    = 80 * 1024 * 1024   # 80 Mo : garde-fou taille d'archive
+
+# Clé publique Ed25519 (base64) des releases — DOIT être identique à
+# PANDA_RELEASE_PUBKEY dans app.py. Générée par tools/gen-release-keys.py.
+# Vide = mise à jour signée non configurée : l'outil refuse de tourner.
+RELEASE_PUBKEY = ""
+
+# Ensemble « code » remplacé par une MAJ (exactement ce que déploie
+# install.sh). Tout le reste de APP_DIR est PRÉSERVÉ tel quel.
+CODE_PATHS = ["app.py", "registry.py", "addon_backends.py",
+              "requirements.txt", "static", "registry"]
+# Chemins dont la présence est vérifiée APRÈS bascule : perdre l'un d'eux est
+# une régression grave (données ou config utilisateur).
+PRESERVE = ["config.json", "data", "addons", "venv"]
+
+log = logging.getLogger("panda-update")
+
+
+# --- Utilitaires -------------------------------------------------------------
+def _setup_logging():
+    log.setLevel(logging.INFO)
+    fmt = logging.Formatter("%(asctime)s  %(levelname)-7s %(message)s",
+                            "%Y-%m-%d %H:%M:%S")
+    sh = logging.StreamHandler(sys.stdout)  # capturé par journald sous systemd
+    sh.setFormatter(fmt)
+    log.addHandler(sh)
+    try:
+        fh = logging.FileHandler(LOG_PATH, encoding="utf-8")
+        fh.setFormatter(fmt)
+        log.addHandler(fh)
+    except OSError as e:
+        log.warning("journal fichier indisponible (%s) : %s", LOG_PATH, e)
+
+
+def _fail(msg, code=1):
+    """Abandon propre : journalise et sort avec un code non nul."""
+    log.error(msg)
+    sys.exit(code)
+
+
+def _ssl_ctx():
+    """Contexte TLS vérifiant les certificats (trust store système si présent)."""
+    if os.path.exists(CA_BUNDLE):
+        return ssl.create_default_context(cafile=CA_BUNDLE)
+    return ssl.create_default_context()
+
+
+def _download(name, dest_path=None, max_bytes=None):
+    """Télécharge RELEASE_BASE+name. Retourne les octets, ou les écrit dans
+    dest_path (streaming) et retourne le nombre d'octets. TLS vérifié."""
+    url = RELEASE_BASE + name
+    ctx = _ssl_ctx()
+    req = urllib.request.Request(url, headers={"User-Agent": "panda-update"})
+    try:
+        with urllib.request.urlopen(req, timeout=DL_TIMEOUT, context=ctx) as resp:
+            if dest_path is None:
+                data = resp.read((max_bytes or 0) + 1 if max_bytes else -1)
+                if max_bytes and len(data) > max_bytes:
+                    raise ValueError(f"{name} dépasse la taille maximale autorisée")
+                return data
+            total = 0
+            with open(dest_path, "wb") as fh:
+                while True:
+                    chunk = resp.read(64 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if max_bytes and total > max_bytes:
+                        raise ValueError(f"{name} dépasse la taille maximale autorisée")
+                    fh.write(chunk)
+            return total
+    except (urllib.error.URLError, ssl.SSLError, ValueError, OSError) as e:
+        raise RuntimeError(f"téléchargement de {name} impossible : {e}") from e
+
+
+def _verify_sig(blob, sig_b64):
+    """Vérifie une signature Ed25519 base64 sur `blob` avec RELEASE_PUBKEY."""
+    import base64
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    pub = Ed25519PublicKey.from_public_bytes(base64.b64decode(RELEASE_PUBKEY))
+    pub.verify(base64.b64decode(sig_b64.strip()), blob)  # lève si invalide
+
+
+def _semver(v):
+    """« X.Y.Z » -> tuple d'entiers ; (0,0,0) si illisible (même règle qu'app.py)."""
+    try:
+        return tuple(int(p) for p in str(v).split("."))
+    except (ValueError, AttributeError):
+        return (0, 0, 0)
+
+
+def _app_version(app_py_path):
+    """Extrait APP_VERSION d'un app.py donné, ou None."""
+    try:
+        with open(app_py_path, encoding="utf-8") as fh:
+            m = re.search(r'APP_VERSION = "([\d.]+)"', fh.read())
+        return m.group(1) if m else None
+    except OSError:
+        return None
+
+
+def _safe_extract(zip_path, dest):
+    """Extrait un zip dans dest en refusant toute traversée de chemin.
+
+    Rejette chemins absolus, « .. », et liens symboliques (zip-slip). Même
+    esprit que app._safe_extract, mais durci contre les entrées symlink."""
+    dest_abs = os.path.realpath(dest)
+    with zipfile.ZipFile(zip_path) as zf:
+        for info in zf.infolist():
+            name = info.filename
+            if name.endswith("/"):
+                continue
+            # mode symlink dans les bits hauts de external_attr → refus
+            if (info.external_attr >> 16) & 0o170000 == 0o120000:
+                raise ValueError(f"lien symbolique interdit dans l'archive : {name}")
+            target = os.path.realpath(os.path.join(dest_abs, name))
+            if target != dest_abs and not target.startswith(dest_abs + os.sep):
+                raise ValueError(f"entrée hors périmètre (zip-slip) : {name}")
+        zf.extractall(dest_abs)
+
+
+def _run(cmd, **kw):
+    """subprocess.run en liste d'arguments (jamais shell=True), journalisé."""
+    log.info("exécution : %s", " ".join(cmd))
+    return subprocess.run(cmd, **kw)
+
+
+def _chown_r(path, uid, gid):
+    os.chown(path, uid, gid)
+    for root, dirs, files in os.walk(path):
+        for n in dirs + files:
+            p = os.path.join(root, n)
+            if not os.path.islink(p):
+                os.chown(p, uid, gid)
+
+
+# --- Sauvegarde / restauration ----------------------------------------------
+def _backup_code(ts, cur_version):
+    """Archive les chemins « code » présents dans un tar.gz horodaté. Retourne
+    le chemin de l'archive (référence pour un éventuel rollback)."""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    os.chmod(BACKUP_DIR, 0o700)
+    arch = os.path.join(BACKUP_DIR, f"panda-{cur_version}-{ts}.tar.gz")
+    with tarfile.open(arch, "w:gz") as tar:
+        for rel in CODE_PATHS:
+            p = os.path.join(APP_DIR, rel)
+            if os.path.exists(p):
+                tar.add(p, arcname=rel)
+    log.info("sauvegarde créée : %s", arch)
+    _prune_backups()
+    return arch
+
+
+def _prune_backups():
+    """Ne garde que les KEEP_BACKUPS sauvegardes les plus récentes."""
+    try:
+        backups = sorted(
+            (os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
+             if f.startswith("panda-") and f.endswith(".tar.gz")),
+            key=os.path.getmtime, reverse=True)
+    except OSError:
+        return
+    for old in backups[KEEP_BACKUPS:]:
+        try:
+            os.remove(old)
+            log.info("ancienne sauvegarde purgée : %s", os.path.basename(old))
+        except OSError:
+            pass
+
+
+def _restore_backup(arch, uid, gid):
+    """Restaure les chemins « code » depuis l'archive de sauvegarde."""
+    log.warning("restauration de la sauvegarde : %s", arch)
+    for rel in CODE_PATHS:
+        p = os.path.join(APP_DIR, rel)
+        if os.path.isdir(p) and not os.path.islink(p):
+            shutil.rmtree(p, ignore_errors=True)
+        elif os.path.exists(p) or os.path.islink(p):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+    with tarfile.open(arch, "r:gz") as tar:
+        # filtre défensif : refuse toute entrée qui sortirait de APP_DIR
+        base = os.path.realpath(APP_DIR)
+        for m in tar.getmembers():
+            t = os.path.realpath(os.path.join(base, m.name))
+            if t != base and not t.startswith(base + os.sep):
+                raise ValueError(f"entrée de sauvegarde hors périmètre : {m.name}")
+        tar.extractall(APP_DIR)
+    for rel in CODE_PATHS:
+        p = os.path.join(APP_DIR, rel)
+        if os.path.exists(p):
+            _chown_r(p, uid, gid)
+
+
+# --- Bascule atomique du code ------------------------------------------------
+def _swap_in(tmp_dir, uid, gid):
+    """Remplace chaque chemin « code » de APP_DIR par sa version de tmp_dir.
+
+    Fichiers : os.replace (atomique, même FS). Répertoires : renommage-swap
+    (cur -> cur.old, new -> cur, rm cur.old) — le patron déjà utilisé par
+    install.sh (static.new). tmp_dir est sur le même système de fichiers que
+    APP_DIR pour garantir l'atomicité des renommages."""
+    for rel in CODE_PATHS:
+        src = os.path.join(tmp_dir, rel)
+        dst = os.path.join(APP_DIR, rel)
+        if not os.path.exists(src):
+            raise RuntimeError(f"archive incomplète : « {rel} » manquant")
+        _chown_r(src, uid, gid) if os.path.isdir(src) else os.chown(src, uid, gid)
+        if os.path.isdir(src):
+            old = dst + ".old-swap"
+            if os.path.exists(old):
+                shutil.rmtree(old, ignore_errors=True)
+            if os.path.exists(dst):
+                os.rename(dst, old)      # atomique
+            os.rename(src, dst)          # atomique
+            if os.path.exists(old):
+                shutil.rmtree(old, ignore_errors=True)
+        else:
+            os.replace(src, dst)         # atomique
+
+
+# --- Validation post-bascule -------------------------------------------------
+def _check_preserved():
+    """Vérifie que config.json, data/, addons/, venv/ ont survécu à la bascule."""
+    missing = [p for p in PRESERVE if not os.path.exists(os.path.join(APP_DIR, p))]
+    # config.json peut légitimement être absent sur une toute première install ;
+    # on ne bloque que sur les données/venv, dont la perte est irréparable.
+    hard = [p for p in missing if p in ("data", "addons", "venv")]
+    if hard:
+        raise RuntimeError(f"chemins préservés disparus après bascule : {hard}")
+    if missing:
+        log.warning("absents après bascule (tolérés) : %s", missing)
+
+
+def _wait_healthy(expected_version):
+    """Poll /healthz jusqu'à status=ok ET version attendue, dans HEALTH_TIMEOUT."""
+    deadline = time.monotonic() + HEALTH_TIMEOUT
+    last = ""
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(HEALTH_URL, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            if data.get("status") == "ok":
+                if data.get("version") == expected_version:
+                    return True
+                last = f"version servie {data.get('version')} ≠ attendue {expected_version}"
+        except (urllib.error.URLError, ValueError, OSError) as e:
+            last = str(e)
+        time.sleep(2)
+    log.error("kiosk non sain après %ss (%s)", HEALTH_TIMEOUT, last)
+    return False
+
+
+def _pip_install(uid, gid):
+    """Réinstalle les deps dans le venv existant, en tant qu'utilisateur app."""
+    pip = os.path.join(APP_DIR, "venv", "bin", "pip")
+    req = os.path.join(APP_DIR, "requirements.txt")
+    if not os.path.isfile(pip):
+        raise RuntimeError("venv/bin/pip introuvable — venv absent ?")
+    user = _pw_name(uid)
+    cmd = ["runuser", "-u", user, "--", pip, "install", "-q", "-r", req]
+    r = _run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"pip a échoué : {(r.stderr or r.stdout or '').strip()[:300]}")
+
+
+def _pw_name(uid):
+    import pwd
+    return pwd.getpwuid(uid).pw_name
+
+
+# --- Programme principal -----------------------------------------------------
+def main():
+    _setup_logging()
+    log.info("=== panda-update démarré ===")
+
+    if os.geteuid() != 0:
+        _fail("panda-update doit être lancé en root (via sudo).")
+    if not RELEASE_PUBKEY:
+        _fail("clé publique de release absente (RELEASE_PUBKEY vide) — "
+              "génère-la avec tools/gen-release-keys.py et embarque-la.")
+
+    # 1. Verrou : un seul updater à la fois.
+    lockf = open(LOCK_PATH, "w")
+    try:
+        fcntl.flock(lockf, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        _fail("une mise à jour est déjà en cours — abandon.")
+
+    # Propriétaire de l'installation (l'app tourne sous cet utilisateur).
+    try:
+        st = os.stat(os.path.join(APP_DIR, "app.py"))
+        uid, gid = st.st_uid, st.st_gid
+    except OSError:
+        _fail(f"installation Panda introuvable dans {APP_DIR}.")
+    cur_version = _app_version(os.path.join(APP_DIR, "app.py")) or "0.0.0"
+    log.info("version installée : %s (propriétaire uid=%s)", cur_version, uid)
+
+    # 2. Récupération + authentification de la release (avant toute écriture).
+    try:
+        meta_blob = _download("release.json", max_bytes=64 * 1024)
+        sig_txt = _download("release.json.sig", max_bytes=4 * 1024).decode("utf-8")
+    except RuntimeError as e:
+        _fail(f"réseau : {e}")
+    try:
+        _verify_sig(meta_blob, sig_txt)
+    except Exception:
+        _fail("signature de release.json INVALIDE — mise à jour refusée, rien touché.")
+    log.info("signature de la release vérifiée ✔")
+    try:
+        meta = json.loads(meta_blob.decode("utf-8"))
+        new_version = str(meta["version"])
+        want_sha = str(meta["sha256"]).lower()
+        archive_name = str(meta.get("archive", "panda.zip"))
+    except (ValueError, KeyError, UnicodeDecodeError) as e:
+        _fail(f"release.json illisible : {e}")
+    if "/" in archive_name or archive_name.startswith("."):
+        _fail(f"nom d'archive suspect dans release.json : {archive_name!r}")
+
+    # 3. Refus de downgrade (échappement explicite pour dépannage).
+    allow_down = os.environ.get("PANDA_ALLOW_DOWNGRADE") == "1"
+    if _semver(new_version) <= _semver(cur_version) and not allow_down:
+        log.info("aucune mise à jour à appliquer (installée %s ≥ release %s). "
+                 "PANDA_ALLOW_DOWNGRADE=1 pour forcer.", cur_version, new_version)
+        sys.exit(0)   # rien à faire n'est pas une erreur
+    log.info("release disponible : %s → %s", cur_version, new_version)
+
+    work = tempfile.mkdtemp(prefix=".panda-upd-", dir=APP_DIR)  # même FS (bascule atomique)
+    backup_arch = None
+    try:
+        # 4. Téléchargement + vérification d'intégrité de l'archive.
+        zip_path = os.path.join(work, "archive.zip")
+        try:
+            _download(archive_name, dest_path=zip_path, max_bytes=MAX_ARCHIVE)
+        except RuntimeError as e:
+            _fail(f"réseau : {e}")
+        got_sha = _sha256_file(zip_path)
+        if got_sha != want_sha:
+            _fail(f"SHA-256 de l'archive incorrect (attendu {want_sha[:12]}…, "
+                  f"obtenu {got_sha[:12]}…) — mise à jour refusée.")
+        log.info("intégrité de l'archive vérifiée (sha256 ✔)")
+
+        # 5. Extraction défensive + validation du contenu.
+        extract = os.path.join(work, "new")
+        os.makedirs(extract)
+        try:
+            _safe_extract(zip_path, extract)
+        except (ValueError, zipfile.BadZipFile) as e:
+            _fail(f"archive invalide : {e}")
+        arch_version = _app_version(os.path.join(extract, "app.py"))
+        if arch_version is None:
+            _fail("archive : app.py absent ou APP_VERSION illisible.")
+        if arch_version != new_version:
+            _fail(f"incohérence : release.json dit {new_version}, "
+                  f"l'archive contient {arch_version} — refus.")
+        for rel in CODE_PATHS:
+            if not os.path.exists(os.path.join(extract, rel)):
+                _fail(f"archive incomplète : « {rel} » manquant.")
+        old_req = _read(os.path.join(APP_DIR, "requirements.txt"))
+        new_req = _read(os.path.join(extract, "requirements.txt"))
+
+        # 6. Sauvegarde de l'installation courante AVANT de toucher quoi que ce soit.
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        backup_arch = _backup_code(ts, cur_version)
+
+        # 7. Bascule atomique du code.
+        log.info("bascule du code…")
+        _swap_in(extract, uid, gid)
+        _check_preserved()
+
+        # 8. Réinstallation des deps si requirements.txt a changé.
+        if old_req != new_req:
+            log.info("requirements.txt a changé — réinstallation des dépendances.")
+            _pip_install(uid, gid)
+        else:
+            log.info("requirements.txt inchangé — venv conservé tel quel.")
+
+        # 9. Redémarrage + validation santé.
+        log.info("redémarrage du service %s…", SERVICE)
+        _run(["systemctl", "restart", SERVICE], check=True)
+        if not _wait_healthy(new_version):
+            raise RuntimeError("le kiosk n'est pas revenu en bonne santé après la bascule")
+
+        log.info("=== mise à jour réussie : %s → %s ===", cur_version, new_version)
+    except Exception as e:
+        # 10. Rollback automatique : jamais de kiosk mort.
+        log.error("échec de la mise à jour : %s", e)
+        if backup_arch:
+            try:
+                _restore_backup(backup_arch, uid, gid)
+                _run(["systemctl", "restart", SERVICE])
+                if _wait_healthy(cur_version):
+                    log.warning("rollback effectué — kiosk restauré en %s.", cur_version)
+                else:
+                    log.error("rollback effectué mais le kiosk ne répond pas — "
+                              "intervention manuelle requise.")
+            except Exception as re:
+                log.error("ROLLBACK EN ÉCHEC : %s — intervention manuelle requise.", re)
+        shutil.rmtree(work, ignore_errors=True)
+        _fail("mise à jour abandonnée (rollback tenté).")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+        fcntl.flock(lockf, fcntl.LOCK_UN)
+        lockf.close()
+
+
+def _sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest().lower()
+
+
+def _read(path):
+    try:
+        with open(path, "rb") as fh:
+            return fh.read()
+    except OSError:
+        return b""
+
+
+if __name__ == "__main__":
+    main()

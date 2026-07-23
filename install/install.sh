@@ -36,7 +36,7 @@ sudo apt-get update -qq
 sudo apt-get install -y -qq python3-venv python3-pip curl locales \
   network-manager bluez rfkill \
   pipewire wireplumber pipewire-pulse alsa-utils \
-  wlr-randr ca-certificates
+  wlr-randr ca-certificates python3-cryptography
 if [[ "$NO_KIOSK" != 1 ]]; then
   sudo apt-get install -y -qq labwc seatd squeekboard chromium \
     fonts-noto-color-emoji
@@ -72,6 +72,11 @@ $USER_NAME ALL=(root) NOPASSWD: /usr/bin/nmcli, /usr/bin/bluetoothctl, /usr/sbin
 EOF
 sudo chmod 440 /etc/sudoers.d/panda-system
 sudo visudo -cf /etc/sudoers.d/panda-system >/dev/null
+
+# --- 4b. Outil de mise à jour signée (panda-update) ------------------------
+# Idempotent, réutilisable seul via install/install-updater.sh.
+echo "==> outil de mise à jour signée (panda-update)"
+bash "$SRC/install/install-updater.sh"
 
 # --- 5. Service Flask -------------------------------------------------------
 echo "==> service panda (Flask/gunicorn)"
