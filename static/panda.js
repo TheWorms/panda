@@ -2920,7 +2920,10 @@ function startUpdateOverlay(prev, expected){
   _updPoll=setTimeout(poll,UPD_START_MS);
 }
 function showUpdateBanner(version){
-  const b=document.createElement('div');b.className='updbanner';b.style.zIndex='1000000';
+  // Un seul bandeau a la fois : sans ce garde-fou, chaque appel empilait un
+  // nouvel element et l'animation d'apparition rejouee donnait un clignotement.
+  if(document.getElementById('updBanner'))return;
+  const b=document.createElement('div');b.id='updBanner';b.className='updbanner';b.style.zIndex='1000000';
   b.innerHTML='✓ Nouvelle version installée avec succès — <b>v'+(version||'?')+'</b><span class="updbannerclose">Toucher pour fermer</span>';
   document.body.appendChild(b);
   requestAnimationFrame(()=>b.classList.add('show'));
@@ -2930,7 +2933,12 @@ function showUpdateBanner(version){
     b.classList.remove('show');setTimeout(()=>b.remove(),300);};
   b.addEventListener('click',kill,{once:true});
 }
+let _updDoneChecked=false;
 async function checkUpdateDone(){
+  // Une seule verification par chargement de page, quel que soit le nombre
+  // d'appels dans la chaine d'authentification.
+  if(_updDoneChecked)return;
+  _updDoneChecked=true;
   try{
     // Persiste à travers un reload de page : le marqueur serveur est one-shot,
     // mais un rechargement juste après le déverrouillage escamotait le bandeau.
