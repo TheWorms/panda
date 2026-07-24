@@ -47,6 +47,14 @@ sha = hashlib.sha256(open(dst, "rb").read()).hexdigest()
 if sha != entry["sha256"]:
     os.remove(dst)
     sys.exit(f"ERREUR : sha256 divergent après copie ({aid})")
+# fichiers frères (logo.svg, changelog.txt) posés à côté du zip par
+# publish-addon.sh : à copier aussi, sinon le store public/GitHub ne les a pas.
+_srcdir = os.path.dirname(src)
+_dstdir = os.path.dirname(dst)
+for _sib in ("logo.svg", "changelog.txt"):
+    _sp = os.path.join(_srcdir, _sib)
+    if os.path.isfile(_sp):
+        shutil.copy2(_sp, os.path.join(_dstdir, _sib))
 idx_pub = json.load(open(os.path.join(pub, "index.json"), encoding="utf-8"))
 before = next((a for a in idx_pub["addons"] if a.get("id") == aid), None)
 if before and before.get("version") == entry["version"]:
