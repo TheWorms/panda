@@ -1076,6 +1076,7 @@ let curSec="sys",appFilter="home",appQuery="";
 let appTab="myapps",appCatFilter="all",appView="list",appSortKey="default";
 const APP_CATS=["Maison","Quotidien","Services","Médias","Outils"];
 let STORE_CAT={};   // id -> catégorie, alimenté depuis l'index (pour les installés du store)
+let STORE_URL='';   // base du store distant (logos des addons non installés)
 let isAdmin=false,adminDefault=false,adminNoPw=false;
 async function refreshSession(){
   try{const r=await fetch('/api/session');const j=await r.json();isAdmin=!!j.admin;adminDefault=!!j.default_admin;adminNoPw=!!j.admin_nopw;}catch(e){}
@@ -1937,6 +1938,7 @@ async function renderStoreList(box){
   try{const r=await fetch('/api/store/index',{cache:'no-store'});d=await r.json();if(!d.ok)err=d.reason||'store injoignable';}
   catch(e){err='store injoignable';}
   if(appTab!=='store')return;                  // l'utilisateur a changé d'onglet entre-temps
+  if(d&&d.store_url)STORE_URL=d.store_url;
   if(d&&d.addons)d.addons.forEach(a=>{if(a.category)STORE_CAT[a.id]=a.category;});
   // en-tête : bouton rafraîchir + date de l'index
   const head=document.getElementById('storehead');
@@ -1991,13 +1993,24 @@ async function renderStoreList(box){
     items.forEach(a=>box.appendChild(storeItemNode(a)));
   }
 }
+/* URL du logo d'un addon du store : depuis le kiosque s'il est installé,
+   sinon depuis le store distant (zips/<id>/<logo>). Repli emoji via onerror. */
+function storeLogoHtml(a,_logo,icoName,icoCol){
+  if(!_logo)return ic(icoName,icoCol);
+  const local=(a.status==='installe');
+  const src=local
+    ?('/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_logo)+'?v='+encodeURIComponent(a.version||'0'))
+    :(STORE_URL?(STORE_URL+'zips/'+encodeURIComponent(a.id)+'/'+encodeURIComponent(_logo))
+               :('/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_logo)));
+  return '<img class="tilogo" src="'+src+'" alt="" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(icoName,icoCol).replace(/"/g,'&quot;')+'">';
+}
 /* Construit la carte/ligne d'un addon du store (réutilisé par section). */
 function storeItemNode(a){
   const by=BYID[a.id];
   const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'');
   const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?(by.cc||by.color):'#f0b429');
   const _logo=a.logo||(by?by.logo:'');
-  const _ico=_logo?('<img class="tilogo" src="/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_logo)+'?v='+encodeURIComponent(a.version||(by?by.ver:'')||'0')+'" alt="" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(icoName,icoCol).replace(/"/g,'&quot;')+'">'):ic(icoName,icoCol);
+  const _ico=storeLogoHtml(a,_logo,icoName,icoCol);
   const dim=(a.status==='installe'||a.status==='incompatible')?' dimmed':'';
   let el,acts;
   if(appView==='cards'){
@@ -2045,7 +2058,7 @@ function openAddonDetail(a){
   const kb=(a.size?(Math.round(a.size/102.4)/10+' Ko'):'—');
   const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?(by.cc||by.color):'#f0b429');
   const _dlogo=a.logo||(by?by.logo:'');
-  const _dico=_dlogo?('<img class="tilogo" src="/addons/'+encodeURIComponent(a.addon||a.id)+'/ui/'+encodeURIComponent(_dlogo)+'?v='+encodeURIComponent(a.version||(by?by.ver:'')||'0')+'" alt="" onerror="this.replaceWith(document.createRange().createContextualFragment(this.getAttribute(\'data-fb\')||\'\'))" data-fb="'+ic(icoName,icoCol).replace(/"/g,'&quot;')+'">'):ic(icoName,icoCol);
+  const _dico=storeLogoHtml(a,_dlogo,icoName,icoCol);
   const sub=a.status==='installe'?('Installé · source '+(a.source||'store'))
     :a.status==='incompatible'?'Non compatible avec ce Panda'
     :a.status==='maj'?('Mise à jour disponible · v'+a.installed_version+' → v'+a.version)

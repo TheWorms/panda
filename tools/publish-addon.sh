@@ -149,6 +149,14 @@ icon = tile0.get("icon", "📦")
 color = tile0.get("color", "#2dd4bf")
 logo = manifest.get("logo") or tile0.get("logo") or ""
 
+# logo : copié à côté du zip pour être servable par le store à distance.
+# Un addon NON installé n'a pas de /addons/<id>/ui/ sur le kiosque ; le
+# store doit donc pouvoir tirer le SVG depuis zips/<id>/<logo>.
+if logo:
+    src_logo = addon_dir / logo
+    if src_logo.is_file():
+        (addon_zdir / src_logo.name).write_bytes(src_logo.read_bytes())
+
 # index.json : réécrit en entier, entrée de l'addon remplacée
 index_path = store / "index.json"
 if index_path.exists():
