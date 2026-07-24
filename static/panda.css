@@ -42,6 +42,12 @@
   .clock .d{font-family:var(--mono);font-size:12px;color:var(--dim);text-transform:capitalize}
   .wx{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:14px}
   .wx .deg{color:var(--text);font-weight:600}
+  /* Veille « horloge + météo » : le bandeau #wxBar est recopié dans #veilWx ;
+     l'icône .wxi perd alors sa borne #wxBar et prendrait sa taille intrinsèque.
+     On la cale sur la taille du texte de veille (~3.6vw). */
+  #veilWx{display:flex;align-items:center;justify-content:center;gap:.5vw}
+  #veilWx .wxi{width:4vw;height:4vw;display:inline-block;vertical-align:middle}
+  #veilWx .deg{color:#cfd4dc}
   .spacer{flex:1}
   .pill{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--dim);background:var(--tile);border:1px solid var(--border);padding:6px 11px;border-radius:20px}
   .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}

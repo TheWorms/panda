@@ -1073,7 +1073,8 @@ function sections(){
   return keep.filter((x,i)=>!(x[0]==='--'&&(i===keep.length-1||(keep[i+1]&&keep[i+1][0]==='--'))));
 }
 let curSec="sys",appFilter="home",appQuery="";
-let appTab="myapps",appCatFilter="all",appView="list",appSortKey="default";
+let appTab="myapps",appCatFilter="all",appSortKey="default";
+let appViews={myapps:"list",store:"cards"};   // vue par onglet : store en cards par défaut
 const APP_CATS=["Maison","Quotidien","Services","Médias","Outils"];
 let STORE_CAT={};   // id -> catégorie, alimenté depuis l'index (pour les installés du store)
 let STORE_URL='';   // base du store distant (logos des addons non installés)
@@ -1851,7 +1852,7 @@ function secApps(){
     '<div class="apptabs">'+tabs.map(([k,l,c])=>'<button class="apptab'+(appTab===k?' on':'')+'" data-t="'+k+'">'+l+(k==='store'?'<span class="chipbadge" id="storeChipBadge" style="display:none"></span>':(c!==''?'<span class="cnt">'+c+'</span>':''))+'</button>').join('')+'</div>'+
     '<div class="appbar"><input id="appSearch" class="inp" placeholder="Rechercher…" value="'+appQuery.replace(/"/g,'&quot;')+'">'+
       '<select id="appSort" class="inp appsort"></select>'+
-      '<div class="vtoggle" id="appVtoggle"><button data-m="list"'+(appView==='list'?' class="on"':'')+'>\u2630</button><button data-m="cards"'+(appView==='cards'?' class="on"':'')+'>\u25A6</button></div>'+
+      '<div class="vtoggle" id="appVtoggle"><button data-m="list"'+(appViews[appTab]==='list'?' class="on"':'')+'>\u2630</button><button data-m="cards"'+(appViews[appTab]==='cards'?' class="on"':'')+'>\u25A6</button></div>'+
     '</div>'+
     '<div class="chips" id="appCats">'+cats.map(([k,l])=>'<div class="chip'+(appCatFilter===k?' on':'')+'" data-c="'+k+'">'+l+'</div>').join('')+'</div>'+
     '<div class="storehead" id="storehead" style="display:none"></div>'+
@@ -1862,7 +1863,7 @@ function secApps(){
   document.getElementById('appSort').addEventListener('change',e=>{appSortKey=e.target.value;renderAppList();});
   setcontent.querySelectorAll('.apptab').forEach(t=>t.addEventListener('click',()=>{if(appTab!==t.dataset.t){appTab=t.dataset.t;appSortKey='default';secApps();}}));
   setcontent.querySelectorAll('#appCats .chip').forEach(c=>c.addEventListener('click',()=>{appCatFilter=c.dataset.c;setcontent.querySelectorAll('#appCats .chip').forEach(x=>x.classList.toggle('on',x.dataset.c===appCatFilter));renderAppList();}));
-  setcontent.querySelectorAll('#appVtoggle button').forEach(b=>b.addEventListener('click',()=>{appView=b.dataset.m;setcontent.querySelectorAll('#appVtoggle button').forEach(x=>x.classList.toggle('on',x===b));renderAppList();}));
+  setcontent.querySelectorAll('#appVtoggle button').forEach(b=>b.addEventListener('click',()=>{appViews[appTab]=b.dataset.m;setcontent.querySelectorAll('#appVtoggle button').forEach(x=>x.classList.toggle('on',x===b));renderAppList();}));
   const sh0=document.getElementById('storehead');if(sh0)sh0.style.display=appTab==='store'?'flex':'none';
   updateStoreBadges();
   prefetchStoreCats();     // alimente STORE_CAT pour catégoriser les installés du store
@@ -1889,8 +1890,8 @@ function appActs(a,shown,host){
 }
 function renderAppList(){
   const box=document.getElementById('applist');if(!box)return;
-  if(appTab==='store'){box.className=appView==='cards'?'appgrid':'applist';renderStoreList(box);return;}
-  box.className=appView==='cards'?'appgrid':'applist';
+  if(appTab==='store'){box.className=appViews[appTab]==='cards'?'appgrid':'applist';renderStoreList(box);return;}
+  box.className=appViews[appTab]==='cards'?'appgrid':'applist';
   renderMyApps(box);
 }
 function renderMyApps(box){
@@ -1910,7 +1911,7 @@ function renderMyApps(box){
     const shown=!state.hidden.includes(a.id);
     const meta=(catOfApp(a)||'—')+(a.src?(' · '+a.src):'');
     let el,acts;
-    if(appView==='cards'){
+    if(appViews[appTab]==='cards'){
       el=document.createElement('div');el.className='appcard';
       el.innerHTML='<div class="apptop"><div class="cic">'+tileIcon(a)+'</div><div class="ctt">'+dnm(a)+(a.update?' <span class="updbadge">MAJ</span>':'')+'</div></div>'+
         '<div class="cmeta">'+meta+'</div>';
@@ -2012,18 +2013,21 @@ function storeItemNode(a){
   const _logo=a.logo||(by?by.logo:'');
   const _ico=storeLogoHtml(a,_logo,icoName,icoCol);
   const dim=(a.status==='installe'||a.status==='incompatible')?' dimmed':'';
+  // méta sans numéro de version (les versions restent gérées par l'index / les badges MAJ)
+  const metaCard=[kb,a.category].filter(Boolean).join(' · ');
+  const metaRow=[kb,a.category,a.description].filter(Boolean).join(' · ');
   let el,acts;
-  if(appView==='cards'){
+  if(appViews[appTab]==='cards'){
     el=document.createElement('div');el.className='appcard st-'+a.status+dim+(a.status==='incompatible'?' off':'');
     el.innerHTML='<div class="apptop"><div class="cic">'+_ico+'</div>'+
       '<div class="ctt">'+(a.name||a.id)+storeBadge(a)+'</div></div>'+
-      '<div class="cmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+'</div>';
+      '<div class="cmeta">'+(metaCard||'—')+'</div>';
     acts=document.createElement('div');acts.className='cacts';
   }else{
     el=document.createElement('div');el.className='approw st-'+a.status+dim+(a.status==='incompatible'?' off':'');
     el.innerHTML='<div class="rico">'+_ico+'</div>'+
       '<div class="rtx"><div class="rnm">'+(a.name||a.id)+storeBadge(a)+'</div>'+
-      '<div class="rmeta">v'+a.version+(kb?(' · '+kb):'')+(a.category?(' · '+a.category):'')+(a.description?(' · '+a.description):'')+'</div></div>';
+      '<div class="rmeta">'+(metaRow||'—')+'</div></div>';
     acts=document.createElement('div');acts.className='racts';
   }
   const an=storeActionNode(a);if(an)acts.appendChild(an);
@@ -2077,13 +2081,12 @@ function openAddonDetail(a){
         '<div class="adCta" id="adCta"></div></div>'+
       (a.description?'<div class="adDesc">'+esc(a.description)+'</div>':'')+
       '<div class="adGrid">'+
-        '<div class="adCell"><div class="k">Version</div><div class="v">v'+esc(a.version)+'</div></div>'+
         '<div class="adCell"><div class="k">Taille</div><div class="v">'+kb+'</div></div>'+
         '<div class="adCell"><div class="k">Contrat</div><div class="v">'+esc(a.kiosk_api||'—')+'</div></div>'+
         '<div class="adCell"><div class="k">Source</div><div class="v">'+esc(a.source||'Abeille')+'</div></div>'+
       '</div>'+
       '<div class="adSec">Dépendances</div><div>'+deps+'</div>'+
-      (a.changelog?'<div class="adSec">Nouveautés v'+esc(a.version)+'</div><div class="stchlog"><pre>'+esc(a.changelog)+'</pre></div>':'')+
+      (a.changelog?'<div class="adSec">Nouveautés</div><div class="stchlog"><pre>'+esc(a.changelog)+'</pre></div>':'')+
     '</div>';
   document.body.appendChild(ov);
   ov.querySelector('.adBack').addEventListener('click',()=>ov.remove());
