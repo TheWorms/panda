@@ -12,16 +12,18 @@
 # exporté, sinon demandé de façon masquée. Portée requise : "repo" (dépôt
 # public : "public_repo" suffit) — jeton DISTINCT de celui de Forgejo.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+_LOAD_SECRET="${PR1V8TE_LIB:-$SCRIPT_DIR/lib/load-secret.sh}"
+[ -f "$_LOAD_SECRET" ] || _LOAD_SECRET="$SCRIPT_DIR/lib/load-secret.sh"
+source "$_LOAD_SECRET"
+cd "$SCRIPT_DIR/.."
 
 GITHUB_REPO="${GITHUB_REPO:?définis GITHUB_REPO, ex. TheWorms/panda}"
 API_BASE="${GITHUB_API_BASE:-https://api.github.com}"
 UPLOAD_BASE="${GITHUB_UPLOAD_BASE:-https://uploads.github.com}"
 
-if [ -z "${GITHUB_TOKEN:-}" ]; then
-  read -rsp "Jeton GitHub (repo) : " GITHUB_TOKEN
-  echo
-fi
+GITHUB_TOKEN="${GITHUB_TOKEN:-$(load_secret github-release-token "Jeton GitHub (repo)")}"
+[ -n "$GITHUB_TOKEN" ] || { echo "❌ aucun jeton GitHub fourni."; exit 1; }
 
 VERSION=$(python3 -c "import re; print(re.search(r'APP_VERSION = \"([^\"]+)\"', open('app.py',encoding='utf-8').read()).group(1))")
 TAG="v${VERSION}"
@@ -37,6 +39,7 @@ if [ -f dist/panda.zip ] && [ -f dist/release.json ] && [ -f dist/release.json.s
 fi
 if [ "$NEED_BUILD" = "1" ]; then
   echo "→ reconstruction (dist/ absent ou version différente)"
+  export RELEASE_PASS="${RELEASE_PASS:-$(load_secret release-signing-passphrase "Passphrase de la clé de release (panda-release.key)")}"
   python3 tools/build-release.py
 fi
 

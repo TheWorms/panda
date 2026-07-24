@@ -19,6 +19,10 @@
 # (le bon réflexe est de bumper la version, ex. --set-version).
 
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+_LOAD_SECRET="${PR1V8TE_LIB:-$SCRIPT_DIR/lib/load-secret.sh}"
+[ -f "$_LOAD_SECRET" ] || _LOAD_SECRET="$SCRIPT_DIR/lib/load-secret.sh"
+source "$_LOAD_SECRET"
 
 PANDA_REPO="${PANDA_REPO:-$HOME/Git/panda}"
 STORE_REPO="${STORE_REPO:-$HOME/Git/abeille}"
@@ -186,6 +190,7 @@ PY
 VERSION=$(python3 -c "import json,sys; print(json.load(open('$ADDON_DIR/manifest.json'))['version'])")
 
 echo "── Signature de l'index ──"
+export SIGNING_PASS="${SIGNING_PASS:-$(load_secret abeille-signing-passphrase "Passphrase de la clé Abeille (abeille-signing.key)")}"
 python3 "$PANDA_REPO/tools/sign-index.py" "$STORE_REPO/index.json"
 
 echo "── Commit + push ──"

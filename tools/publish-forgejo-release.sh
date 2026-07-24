@@ -12,18 +12,21 @@
 # demandé de façon masquée. Utilise un jeton à portée write:repository —
 # DISTINCT du jeton read:repository configuré côté Panda pour le canal beta.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+_LOAD_SECRET="${PR1V8TE_LIB:-$SCRIPT_DIR/lib/load-secret.sh}"
+[ -f "$_LOAD_SECRET" ] || _LOAD_SECRET="$SCRIPT_DIR/lib/load-secret.sh"
+source "$_LOAD_SECRET"
+cd "$SCRIPT_DIR/.."
 
 FORGEJO_URL="${FORGEJO_URL:?définis FORGEJO_URL, ex. https://192.168.0.230:3000}"
 FORGEJO_REPO="${FORGEJO_REPO:?définis FORGEJO_REPO, ex. theworms/panda}"
 FORGEJO_URL="${FORGEJO_URL%/}"
 
-if [ -z "${FORGEJO_TOKEN:-}" ]; then
-  read -rsp "Jeton Forgejo (write:repository) : " FORGEJO_TOKEN
-  echo
-fi
+FORGEJO_TOKEN="${FORGEJO_TOKEN:-$(load_secret forgejo-release-token "Jeton Forgejo (write:repository)")}"
+[ -n "$FORGEJO_TOKEN" ] || { echo "❌ aucun jeton Forgejo fourni."; exit 1; }
 
 echo "=== 1. Construction et signature de la release ==="
+export RELEASE_PASS="${RELEASE_PASS:-$(load_secret release-signing-passphrase "Passphrase de la clé de release (panda-release.key)")}"
 python3 tools/build-release.py
 
 VERSION=$(python3 -c "import re; print(re.search(r'APP_VERSION = \"([^\"]+)\"', open('app.py',encoding='utf-8').read()).group(1))")

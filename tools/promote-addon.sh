@@ -14,6 +14,10 @@
 #
 # La promotion est idempotente : re-promouvoir la même version ne change rien.
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+_LOAD_SECRET="${PR1V8TE_LIB:-$SCRIPT_DIR/lib/load-secret.sh}"
+[ -f "$_LOAD_SECRET" ] || _LOAD_SECRET="$SCRIPT_DIR/lib/load-secret.sh"
+source "$_LOAD_SECRET"
 PRIV="${ABEILLE_PRIV:-$HOME/Git/abeille}"
 PUB="${ABEILLE_PUB:-$HOME/Git/abeille-public}"
 # compat : chemins historiques si ~/Git n'existe pas
@@ -61,7 +65,8 @@ echo "$RES"
 [[ "$RES" == déjà* ]] && exit 0
 
 # 5 — signature de l'index public (la même clé signe privé et public)
-python3 "$(cd "$(dirname "$0")" && pwd)/sign-index.py" "$PUB/index.json"
+export SIGNING_PASS="${SIGNING_PASS:-$(load_secret abeille-signing-passphrase "Passphrase de la clé Abeille (abeille-signing.key)")}"
+python3 "$SCRIPT_DIR/sign-index.py" "$PUB/index.json"
 
 # 6 — commit + push (le miroir GitHub suit automatiquement)
 cd "$PUB"
