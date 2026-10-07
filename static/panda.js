@@ -46,7 +46,7 @@ async function loadRegistry(){
   return false;
 }
 
-let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',updChannel:'stable',updBetaUrl:'',updBetaToken:'',veilleMode:'off',veilleOff:0,npStyle:'plateau',font:'system'};
+let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',updChannel:'stable',updBetaUrl:'',updBetaToken:'',veilleMode:'off',veilleOff:0,npStyle:'plateau',npWhen:'idle',font:'system'};
 function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
 /* Icônes Tabler : mapping emoji → nom d'icône, + helper de rendu.
    Fallback : un emoji non mappé est affiché tel quel. ic() renvoie du HTML
@@ -77,7 +77,7 @@ function sanitize(){
 let pushT;
 function save(){
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,npStyle:state.npStyle,font:state.font})}).catch(()=>{});},250);
+  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,npStyle:state.npStyle,npWhen:state.npWhen,font:state.font})}).catch(()=>{});},250);
 }
 async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){const j=await r.json();/* Secrets (storeToken, updBetaToken, browserPw) masqués aux non-admin : le serveur ne renvoie que has_<clé>=true. On ne les recopie pas dans state pour ne pas écraser la valeur connue (une sauvegarde ultérieure d'un admin renverrait un jeton vide). */for(const k of ['storeToken','updBetaToken','browserPw']){if(j['has_'+k]&&!j[k])delete j[k];}Object.assign(state,j);sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
@@ -2438,6 +2438,7 @@ function secApparence(){
     '<div class="setrow"><div class="lft"><div class="t">Pendant la veille</div><div class="d">Écran éteint (économie maximale), ou horloge affichée — avec la météo du bandeau si disponible. Un toucher réveille.</div></div><select class="inp" id="veilleMode">'+'<option value="off"'+((state.veilleMode||'off')==='off'?' selected':'')+'>Écran éteint</option>'+'<option value="clock"'+(state.veilleMode==='clock'?' selected':'')+'>Horloge</option>'+'<option value="meteo"'+(state.veilleMode==='meteo'?' selected':'')+'>Horloge + météo</option>'+'</select></div>'+
     '<div class="setrow" id="veilleOffRow" style="'+(((state.veilleMode||'off')!=='off')?'':'display:none')+'"><div class="lft"><div class="t">Extinction totale après</div><div class="d">En mode horloge, éteint complètement la dalle après ce délai supplémentaire (économie maximale). Un toucher rallume.</div></div><select class="inp" id="veilleOff" style="max-width:160px">'+'<option value="0"'+((state.veilleOff||0)===0?' selected':'')+'>Jamais</option>'+'<option value="15"'+(state.veilleOff===15?' selected':'')+'>+ 15 min</option>'+'<option value="30"'+(state.veilleOff===30?' selected':'')+'>+ 30 min</option>'+'<option value="60"'+(state.veilleOff===60?' selected':'')+'>+ 1 h</option>'+'<option value="120"'+(state.veilleOff===120?' selected':'')+'>+ 2 h</option>'+'<option value="180"'+(state.veilleOff===180?' selected':'')+'>+ 3 h</option>'+'<option value="360"'+(state.veilleOff===360?' selected':'')+'>+ 6 h</option>'+'<option value="720"'+(state.veilleOff===720?' selected':'')+'>+ 12 h</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Écran pendant une lecture</div><div class="d">Quand la Radio ou la Musique joue au moment de la veille, visuel par défaut — la Musique impose Vinyle, la Radio impose Onde ; « Voile noir » coupe tout écran en écoute (un toucher réveille toujours)</div></div><select class="inp" id="npStyle" style="max-width:170px">'+'<option value="plateau"'+((state.npStyle||'plateau')==='plateau'?' selected':'')+'>Plateau de nuit</option>'+'<option value="vinyle"'+((state.npStyle||'')==='vinyle'?' selected':'')+'>Vinyle</option>'+'<option value="onde"'+((state.npStyle||'')==='onde'?' selected':'')+'>Onde pleine</option>'+'<option value="none"'+((state.npStyle||'')==='none'?' selected':'')+'>Voile noir habituel</option>'+'</select></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Quand la lecture démarre</div><div class="d">Bascule sur l\'écran en écoute dès le lancement d\'un son (Radio ou Musique), ou seulement au moment normal de la veille</div></div><select class="inp" id="npWhen" style="max-width:170px">'+'<option value="idle"'+((state.npWhen||'idle')==='idle'?' selected':'')+'>Au délai de veille</option>'+'<option value="now"'+((state.npWhen||'')==='now'?' selected':'')+'>Dès le début de la lecture</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Taille du texte</div><div class="d">Agrandir ou réduire l\'affichage</div></div><div class="seg" id="segFont"><button data-fs="92">A−</button><button data-fs="100">A</button><button data-fs="108">A+</button><button data-fs="116">A++</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Rotation</div><div class="d">Orientation de l\'affichage</div></div><select class="inp" id="rotSel" style="max-width:150px"><option value="normal">Normale</option><option value="left">90° gauche</option><option value="right">90° droite</option><option value="inverted">180°</option></select></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Accueil</div>'+
@@ -2499,6 +2500,8 @@ function secApparence(){
   if(voff)voff.addEventListener('change',()=>{state.veilleOff=parseInt(voff.value)||0;save();});
   const npsel=document.getElementById('npStyle');
   if(npsel)npsel.addEventListener('change',()=>{state.npStyle=npsel.value;save();});
+  const npwsel=document.getElementById('npWhen');
+  if(npwsel)npwsel.addEventListener('change',()=>{state.npWhen=npwsel.value;save();});
   const vsel=document.getElementById('veille');
   if(vsel)vsel.addEventListener('change',async()=>{
     const mins=parseInt(vsel.value)||0;
@@ -2877,6 +2880,8 @@ let veilleT=null,screenIsOff=false;
    imposer leur visuel via « style » : Musique→vinyle, Radio→onde) ; lecture :
    bus audio « panda-audio-play / -pause / -ended » (wrapper de new Audio,
    en tête de fichier). Anti-marquage : léger déplacement chaque minute.
+   Réglage « Quand la lecture démarre » : bascule immédiate sur l'écran
+   en écoute ou seulement au moment normal de la veille.
    Si la lecture s'arrête pendant la veille, le voile configuré reprend
    (noir ou horloge) ; « Extinction totale après » s'applique aussi. */
 let npMeta=null,npNow=null,npDeb=null,dalleOff=false;
@@ -2889,8 +2894,13 @@ window.addEventListener('panda-audio-meta',e=>{const d=e.detail||{};
   else npMeta={kind:d.kind||'',name:d.name||'',sub:d.sub||'',icon:d.icon||'',dur:d.dur||0,style:d.style||'',el:d.el||null};
   npRefresh();});
 window.addEventListener('panda-audio-play',e=>{const el=e.detail&&e.detail.el;
-  npNow=(npMeta&&npMeta.el===el)?Object.assign({},npMeta):{kind:'Lecture audio',name:'En cours de lecture',sub:'',icon:'',dur:0,el:el};
-  npRefresh();});
+  npNow=(npMeta&&npMeta.el===el)?Object.assign({src:1},npMeta):{kind:'Lecture audio',name:'En cours de lecture',sub:'',icon:'',dur:0,el:el};
+  npRefresh();
+  /* Réglage « Dès le début de la lecture » : bascule aussitôt sur l'écran
+     en écoute — seulement pour une vraie source (avec métadonnées), jamais
+     pour un son isolé comme la sonnerie du minuteur ; le minuteur en marche
+     garde la priorité (garde dans screenOff) et « Voile noir » coupe tout. */
+  if(!screenIsOff&&state.npWhen==='now'&&npNow.src&&npEffStyle()!=='none')screenOff();});
 function npAudioStops(e){const el=e.detail&&e.detail.el;if(npNow&&npNow.el===el)npNow=null;npRefresh();}
 window.addEventListener('panda-audio-pause',npAudioStops);
 window.addEventListener('panda-audio-ended',npAudioStops);
