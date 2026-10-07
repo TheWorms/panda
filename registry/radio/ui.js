@@ -53,6 +53,9 @@ window.PandaAddons.radio = (function () {
       audio = new Audio(st.url);
       audio.play().catch(e => { const er = document.getElementById('rdErr'); if (er) er.textContent = 'Lecture impossible : ' + e.message; });
       current = st;
+      /* Métadonnées pour la veille « en écoute » du socle (écran now playing). */
+      try { window.dispatchEvent(new CustomEvent('panda-audio-meta', {detail:{el:audio, kind:'Radio · en écoute', name:st.name,
+        sub:[st.country, (st.codec||'').toUpperCase(), st.bitrate ? st.bitrate+' kbps' : ''].filter(Boolean).join(' · '), icon:st.favicon||''}})); } catch(e){}
     } catch (e) { current = null; }
     updBar();
     if (root && document.body.contains(root)) paint();
@@ -62,6 +65,14 @@ window.PandaAddons.radio = (function () {
     current = null; updBar();
     if (root && document.body.contains(root)) paint();
   }
+  /* Arbitrage audio : si une autre lecture démarre sur le kiosk (Musique,
+     son du minuteur…), la radio s'efface d'elle-même — l'événement
+     « panda-audio-play » est émis par le socle pour tout <audio> créé
+     via « new Audio » (non rattachés au DOM). On ignore notre propre
+     élément pour ne pas se couper soi-même. */
+  window.addEventListener('panda-audio-play', e => {
+    if (audio && (!e.detail || e.detail.el !== audio)) stop();
+  });
 
   async function render(el, sdk, a) {
     S = sdk; bgSdk = bgSdk || sdk; root = el; tile = a || tile;
@@ -134,5 +145,5 @@ window.PandaAddons.radio = (function () {
   function background(sdk) { bgSdk = sdk; updBar(); }
   function unmount() { root = null; }   // audio et current conservés : lecture persistante
 
-  return { render, background, unmount };
+  return { render, background, unmount, stop };
 })();

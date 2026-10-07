@@ -1,3 +1,25 @@
+/* Arbitrage audio du kiosk : les <audio> créés via « new Audio » ne sont
+   pas rattachés au DOM — leurs événements « play » n'atteignent jamais
+   document. Ce wrapper émet « panda-audio-play / -pause / -ended » sur
+   window pour chaque lecture détachée : le socle (veille « en écoute »)
+   et les addons (ex. la Radio qui s'efface quand la Musique démarre)
+   peuvent réagir — un seul son audible à la fois. */
+(function(){
+  const NativeAudio = window.Audio;
+  if(!NativeAudio) return;
+  function PandaAudio(src){
+    const el = (src === undefined) ? new NativeAudio() : new NativeAudio(src);
+    const emit = (name) => { try{ window.dispatchEvent(new CustomEvent(name, {detail:{el:el}})); }catch(e){} };
+    el.addEventListener('play',  function(){ emit('panda-audio-play'); });
+    el.addEventListener('pause', function(){ emit('panda-audio-pause'); });
+    el.addEventListener('ended', function(){ emit('panda-audio-ended'); });
+    return el;
+  }
+  PandaAudio.prototype = NativeAudio.prototype;
+  if (typeof NativeAudio.canPlayType === 'function') PandaAudio.canPlayType = function(t){ return NativeAudio.canPlayType(t); };
+  try{ Object.defineProperty(window, 'Audio', {value: PandaAudio, writable: true, configurable: true}); }catch(e){}
+})();
+
 const CATS={
   systeme:{i:'⚙️',l:'Système',c:'#888780'},maison:{l:"Maison",i:"🏠",c:'#378add'},cuisine:{l:"Cuisine",i:"🍳",c:'#e8a06a'},meteo:{l:"Météo",i:"🌤️",c:'#f0b429'},agenda:{l:"Agenda",i:"📆",c:'#7aa2f7'},media:{l:"Média",i:"▶️",c:'#534ab7'},docs:{l:"Docs",i:"📁",c:'#639922'},jardin:{l:"Jardin",i:"🌱",c:'#5ac8a8'},transport:{l:"Transport",i:"🚆",c:'#378add'},infra:{l:"Infra",i:"🖥️",c:'#e0892b'},utils:{l:"Utils",i:"🧰",c:'#888780'}};
 /* Catalogue d'addons — plus rien en dur : tout vient du registre serveur
@@ -24,7 +46,7 @@ async function loadRegistry(){
   return false;
 }
 
-let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',updChannel:'stable',updBetaUrl:'',updBetaToken:'',veilleMode:'off',veilleOff:0,font:'system'};
+let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',updChannel:'stable',updBetaUrl:'',updBetaToken:'',veilleMode:'off',veilleOff:0,npStyle:'plateau',font:'system'};
 function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
 /* Icônes Tabler : mapping emoji → nom d'icône, + helper de rendu.
    Fallback : un emoji non mappé est affiché tel quel. ic() renvoie du HTML
@@ -55,7 +77,7 @@ function sanitize(){
 let pushT;
 function save(){
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,font:state.font})}).catch(()=>{});},250);
+  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,npStyle:state.npStyle,font:state.font})}).catch(()=>{});},250);
 }
 async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){const j=await r.json();/* Secrets (storeToken, updBetaToken, browserPw) masqués aux non-admin : le serveur ne renvoie que has_<clé>=true. On ne les recopie pas dans state pour ne pas écraser la valeur connue (une sauvegarde ultérieure d'un admin renverrait un jeton vide). */for(const k of ['storeToken','updBetaToken','browserPw']){if(j['has_'+k]&&!j[k])delete j[k];}Object.assign(state,j);sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
@@ -2415,6 +2437,7 @@ function secApparence(){
     '<div class="setrow"><div class="lft"><div class="t">Mise en veille écran</div><div class="d">Éteint l\'écran après une période d\'inactivité (un toucher rallume, sans rien déclencher)</div></div><select class="inp" id="veille">'+'<option value="0"'+(state.veille===0?' selected':'')+'>Jamais</option>'+'<option value="5"'+(state.veille===5?' selected':'')+'>5 min</option>'+'<option value="15"'+(state.veille===15?' selected':'')+'>15 min</option>'+'<option value="30"'+(state.veille===30?' selected':'')+'>30 min</option>'+'<option value="60"'+(state.veille===60?' selected':'')+'>1 h</option>'+'<option value="120"'+(state.veille===120?' selected':'')+'>2 h</option>'+'<option value="180"'+(state.veille===180?' selected':'')+'>3 h</option>'+'<option value="360"'+(state.veille===360?' selected':'')+'>6 h</option>'+'<option value="720"'+(state.veille===720?' selected':'')+'>12 h</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Pendant la veille</div><div class="d">Écran éteint (économie maximale), ou horloge affichée — avec la météo du bandeau si disponible. Un toucher réveille.</div></div><select class="inp" id="veilleMode">'+'<option value="off"'+((state.veilleMode||'off')==='off'?' selected':'')+'>Écran éteint</option>'+'<option value="clock"'+(state.veilleMode==='clock'?' selected':'')+'>Horloge</option>'+'<option value="meteo"'+(state.veilleMode==='meteo'?' selected':'')+'>Horloge + météo</option>'+'</select></div>'+
     '<div class="setrow" id="veilleOffRow" style="'+(((state.veilleMode||'off')!=='off')?'':'display:none')+'"><div class="lft"><div class="t">Extinction totale après</div><div class="d">En mode horloge, éteint complètement la dalle après ce délai supplémentaire (économie maximale). Un toucher rallume.</div></div><select class="inp" id="veilleOff" style="max-width:160px">'+'<option value="0"'+((state.veilleOff||0)===0?' selected':'')+'>Jamais</option>'+'<option value="15"'+(state.veilleOff===15?' selected':'')+'>+ 15 min</option>'+'<option value="30"'+(state.veilleOff===30?' selected':'')+'>+ 30 min</option>'+'<option value="60"'+(state.veilleOff===60?' selected':'')+'>+ 1 h</option>'+'<option value="120"'+(state.veilleOff===120?' selected':'')+'>+ 2 h</option>'+'<option value="180"'+(state.veilleOff===180?' selected':'')+'>+ 3 h</option>'+'<option value="360"'+(state.veilleOff===360?' selected':'')+'>+ 6 h</option>'+'<option value="720"'+(state.veilleOff===720?' selected':'')+'>+ 12 h</option>'+'</select></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Écran pendant une lecture</div><div class="d">Quand la Radio ou la Musique joue au moment de la veille, affiche un écran « en écoute » au lieu du voile noir (un toucher réveille toujours)</div></div><select class="inp" id="npStyle" style="max-width:170px">'+'<option value="plateau"'+((state.npStyle||'plateau')==='plateau'?' selected':'')+'>Plateau de nuit</option>'+'<option value="vinyle"'+((state.npStyle||'')==='vinyle'?' selected':'')+'>Vinyle</option>'+'<option value="onde"'+((state.npStyle||'')==='onde'?' selected':'')+'>Onde pleine</option>'+'<option value="none"'+((state.npStyle||'')==='none'?' selected':'')+'>Voile noir habituel</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Taille du texte</div><div class="d">Agrandir ou réduire l\'affichage</div></div><div class="seg" id="segFont"><button data-fs="92">A−</button><button data-fs="100">A</button><button data-fs="108">A+</button><button data-fs="116">A++</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Rotation</div><div class="d">Orientation de l\'affichage</div></div><select class="inp" id="rotSel" style="max-width:150px"><option value="normal">Normale</option><option value="left">90° gauche</option><option value="right">90° droite</option><option value="inverted">180°</option></select></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Accueil</div>'+
@@ -2474,6 +2497,8 @@ function secApparence(){
     const row=document.getElementById('veilleOffRow');if(row)row.style.display=(vmod.value!=='off')?'':'none';});
   const voff=document.getElementById('veilleOff');
   if(voff)voff.addEventListener('change',()=>{state.veilleOff=parseInt(voff.value)||0;save();});
+  const npsel=document.getElementById('npStyle');
+  if(npsel)npsel.addEventListener('change',()=>{state.npStyle=npsel.value;save();});
   const vsel=document.getElementById('veille');
   if(vsel)vsel.addEventListener('change',async()=>{
     const mins=parseInt(vsel.value)||0;
@@ -2843,48 +2868,141 @@ document.getElementById('logout').addEventListener('click',showPowerMenu);
 /* auto-lock idle */
 let idleT;
 let veilleT=null,screenIsOff=false;
+/* ---- veille « en écoute » (now playing) ----------------------------------
+   Si un son joue (Radio, Musique…) au déclenchement de la veille, on affiche
+   un écran « en écoute » au lieu du voile noir — la dalle reste allumée
+   pour montrer ce qui joue. Un toucher réveille toujours (aucune commande dans
+   l'écran : le premier toucher ne doit rien déclencher dessous).
+   Données : « panda-audio-meta » (poussées par les addons) ; état de lecture :
+   bus audio « panda-audio-play / -pause / -ended » (wrapper de new Audio,
+   en tête de fichier). Anti-marquage : léger déplacement chaque minute.
+   Si la lecture s'arrête pendant la veille, le voile configuré reprend
+   (noir ou horloge) ; « Extinction totale après » s'applique aussi. */
+let npMeta=null,npNow=null,npDeb=null,dalleOff=false;
+const npEsc=s=>String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const npFmt=s=>{if(!isFinite(s)||s<0)return '0:00';const m2=Math.floor(s/60);return m2+':'+String(Math.floor(s%60)).padStart(2,'0');};
+const _dalleOn=on=>fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:on})}).catch(()=>{});
+window.addEventListener('panda-audio-meta',e=>{const d=e.detail||{};
+  if(d.clear){if(npMeta&&(!d.el||npMeta.el===d.el))npMeta=null;}
+  else npMeta={kind:d.kind||'',name:d.name||'',sub:d.sub||'',icon:d.icon||'',dur:d.dur||0,el:d.el||null};
+  npRefresh();});
+window.addEventListener('panda-audio-play',e=>{const el=e.detail&&e.detail.el;
+  npNow=(npMeta&&npMeta.el===el)?Object.assign({},npMeta):{kind:'Lecture audio',name:'En cours de lecture',sub:'',icon:'',dur:0,el:el};
+  npRefresh();});
+function npAudioStops(e){const el=e.detail&&e.detail.el;if(npNow&&npNow.el===el)npNow=null;npRefresh();}
+window.addEventListener('panda-audio-pause',npAudioStops);
+window.addEventListener('panda-audio-ended',npAudioStops);
+function npRefresh(){
+  // en veille : basculer le voile selon qu'un son joue ou non (débounce anti-flicker,
+  // un changement de piste enchaîne pause+play en quelques millisecondes)
+  if(!screenIsOff)return;clearTimeout(npDeb);
+  npDeb=setTimeout(()=>{const v=document.getElementById('veil');
+    const isNp=!!(v&&v._np),wantNp=!!npNow&&(state.npStyle||'plateau')!=='none';
+    if(isNp!==wantNp)buildVeil();},300);}
 function screenOff(){
-  if(screenIsOff)return;screenIsOff=true;
-  // Voile noir : l'écran s'éteint mais le tactile reste actif — le voile
-  // capte le premier toucher (rallumage) sans cliquer l'interface dessous.
-  const mode=(state.veilleMode||'off');
+  if(screenIsOff)return;
+  /* Minuteur en marche : pas de mise en veille — l'écran reste allumé
+     pour suivre le compte à rebours. resetIdle() repousse simplement
+     la veille d'un cycle ; elle reviendra quand le minuteur sera
+     arrêté ou terminé (sonné). */
+  if(tmTimer&&!tmDone){resetIdle();return;}
+  screenIsOff=true;
+  buildVeil();
+}
+function buildVeil(){
+  const old=document.getElementById('veil');
+  if(old){if(old._t)clearInterval(old._t);if(old._off)clearTimeout(old._off);old.remove();}
   const v=document.createElement('div');v.id='veil';
-  v.style.cssText='position:fixed;inset:0;background:#000;z-index:99999';
+  // le voile capte le premier toucher (rallumage) sans cliquer l'interface dessous
   v.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();screenOn();},{once:true,capture:true});
-  if(mode!=='off'){
-    // veille « habitée » : horloge (+ météo du bandeau), dalle laissée allumée
-    v.innerHTML='<div id="veilBox" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#cfd4dc;font-family:var(--sans);transition:transform 1.2s">'+
-      '<div id="veilClk" style="font-size:15vw;font-weight:600;letter-spacing:.02em;line-height:1"></div>'+
-      '<div id="veilDate" style="font-size:3.2vw;color:#8b93a1;margin-top:1.4vh"></div>'+
-      (mode==='meteo'?'<div id="veilWx" style="font-size:3.6vw;color:#aab2bf;margin-top:2.4vh"></div>':'')+'</div>';
-    const upd=()=>{const d=new Date();const c=document.getElementById('veilClk');if(!c)return;
-      c.textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')});
-      const de=document.getElementById('veilDate');if(de)de.textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-      if(mode==='meteo'){const w=document.getElementById('veilWx'),s=document.getElementById('wxBar');if(w)w.innerHTML=((s&&s.innerHTML)||'').trim();}
-      // anti-marquage : léger déplacement aléatoire du bloc chaque minute
-      const b=document.getElementById('veilBox');
-      if(b&&d.getSeconds()===0)b.style.transform='translate('+(-50+(Math.random()*8-4))+'%,'+(-50+(Math.random()*8-4))+'%)';
+  const np=!!npNow&&(state.npStyle||'plateau')!=='none';
+  if(np){
+    /* ---- écran « en écoute » : visuel au choix dans les réglages ---- */
+    v._np=true;v.dataset.np='1';
+    const d=npNow,st=state.npStyle||'plateau';
+    v.dataset.style=st;v.dataset.prog=(d.dur>0?'1':'0');
+    const ic=d.icon?'<img src="'+npEsc(d.icon)+'" onerror="this.replaceWith(document.createTextNode(\'🔊\'))">':(d.dur>0?'🎵':'📻');
+    let h='<div class="nclk" id="npvClk"></div>';
+    if(st==='plateau'){
+      h+='<div class="nwrap"><div class="ncov">'+ic+'</div><div class="ninfo">'+
+        '<div class="nkind">'+npEsc(d.kind)+'</div><div class="nnm">'+npEsc(d.name)+'</div>'+
+        '<div class="nsub">'+npEsc(d.sub)+'</div>'+
+        '<div class="neq">'+'<i></i>'.repeat(9)+'</div>'+
+        '<div class="nprog"><div class="npbar"><div class="npfill" id="npvFill"></div></div>'+
+        '<div class="nptime"><b id="npvEl">0:00</b> / <span id="npvTot">'+npFmt(d.dur)+'</span></div></div>'+
+        '</div></div>';
+    }else if(st==='vinyle'){
+      h+='<div class="nwrap"><div class="ndisc"><div class="nlbl">'+ic+'</div></div>'+
+        '<div class="ntxt"><div class="nkind">'+npEsc(d.kind)+'</div><div class="nnm">'+npEsc(d.name)+'</div><div class="nsub">'+npEsc(d.sub)+'</div></div></div>';
+    }else{
+      h+='<div class="nblob nb1"></div><div class="nblob nb2"></div>'+
+        '<div class="ntxtc"><div class="nkind">'+npEsc(d.kind)+'</div><div class="nnm">'+npEsc(d.name)+'</div><div class="nsub">'+npEsc(d.sub)+'</div></div>'+
+        '<div class="nwave">'+'<i></i>'.repeat(62)+'</div>';
+    }
+    h+='<div class="nhint">un toucher réveille</div>';
+    v.innerHTML=h;
+    v.querySelectorAll('.neq i,.nwave i').forEach(b=>{b.style.animationDelay='-'+(Math.random()*1.3).toFixed(2)+'s';b.style.animationDuration=(0.9+Math.random()*0.9).toFixed(2)+'s';});
+    const upd=()=>{const c=document.getElementById('npvClk');if(!c)return;
+      const dt=new Date();
+      c.innerHTML=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')})+
+        '<small>'+dt.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</small>';
+      if(d.dur>0&&d.el){const f=document.getElementById('npvFill');
+        if(f){const dd=(d.el.duration||d.dur);f.style.width=Math.min(100,d.el.currentTime/dd*100)+'%';
+          const e2=document.getElementById('npvEl');if(e2)e2.textContent=npFmt(d.el.currentTime);}}
+      // anti-marquage : léger déplacement du contenu chaque minute
+      if(dt.getSeconds()===0){const w=v.querySelector('.nwrap,.ntxtc');
+        if(w)w.style.transform='translate('+(Math.random()*8-4).toFixed(1)+'px,'+(Math.random()*8-4).toFixed(1)+'px)';}
     };
     upd();v._t=setInterval(upd,1000);
-    // 2e étape : après veilleOff minutes d'horloge, extinction TOTALE de la dalle
-    // (le voile reste pour capter le toucher ; l'horloge est masquée).
+    if(dalleOff){dalleOff=false;_dalleOn(true);}    // la dalle se rallume pour l'écran en écoute
+    // 2e étape : après veilleOff minutes, extinction TOTALE de la dalle
     if((state.veilleOff||0)>0){
-      v._off=setTimeout(()=>{
-        const box=document.getElementById('veilBox');if(box)box.style.display='none';
+      v._off=setTimeout(()=>{dalleOff=true;
+        const w=v.querySelector('.nwrap,.ntxtc');if(w)w.style.display='none';
         if(v._t){clearInterval(v._t);v._t=null;}
-        fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:false})}).catch(()=>{});
+        _dalleOn(false);
       },state.veilleOff*60000);
+    }
+  }else{
+    const mode=(state.veilleMode||'off');
+    v.style.cssText='position:fixed;inset:0;background:#000;z-index:99999';
+    if(mode!=='off'&&!dalleOff){
+      // veille « habitée » : horloge (+ météo du bandeau), dalle laissée allumée
+      v.innerHTML='<div id="veilBox" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#cfd4dc;font-family:var(--sans);transition:transform 1.2s">'+
+        '<div id="veilClk" style="font-size:15vw;font-weight:600;letter-spacing:.02em;line-height:1"></div>'+
+        '<div id="veilDate" style="font-size:3.2vw;color:#8b93a1;margin-top:1.4vh"></div>'+
+        (mode==='meteo'?'<div id="veilWx" style="font-size:3.6vw;color:#aab2bf;margin-top:2.4vh"></div>':'')+'</div>';
+      const upd=()=>{const d=new Date();const c=document.getElementById('veilClk');if(!c)return;
+        c.textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')});
+        const de=document.getElementById('veilDate');if(de)de.textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+        if(mode==='meteo'){const w=document.getElementById('veilWx'),s=document.getElementById('wxBar');if(w)w.innerHTML=((s&&s.innerHTML)||'').trim();}
+        // anti-marquage : léger déplacement aléatoire du bloc chaque minute
+        const b=document.getElementById('veilBox');
+        if(b&&d.getSeconds()===0)b.style.transform='translate('+(-50+(Math.random()*8-4))+'%,'+(-50+(Math.random()*8-4))+'%)';
+      };
+      upd();v._t=setInterval(upd,1000);
+      // 2e étape : après veilleOff minutes d'horloge, extinction TOTALE de la dalle
+      // (le voile reste pour capter le toucher ; l'horloge est masquée).
+      if((state.veilleOff||0)>0){
+        v._off=setTimeout(()=>{dalleOff=true;
+          const box=document.getElementById('veilBox');if(box)box.style.display='none';
+          if(v._t){clearInterval(v._t);v._t=null;}
+          _dalleOn(false);
+        },state.veilleOff*60000);
+      }
+    }else if(mode==='off'){
+      // Voile noir : l'écran s'éteint mais le tactile reste actif — le voile
+      // capte le premier toucher (rallumage) sans cliquer l'interface dessous.
+      dalleOff=true;_dalleOn(false);
     }
   }
   document.body.appendChild(v);
-  if(mode==='off')fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:false})}).catch(()=>{});
 }
 function screenOn(){
-  screenIsOff=false;
+  screenIsOff=false;clearTimeout(npDeb);
   const v=document.getElementById('veil');
   // Rallumer la dalle si elle a été éteinte (mode 'off' direct, OU 2e étape atteinte).
-  const wasOff=(state.veilleMode||'off')==='off'||(v&&!v._t&&(state.veilleOff||0)>0);
-  if(wasOff)fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:true})}).catch(()=>{});
+  if(dalleOff){dalleOff=false;_dalleOn(true);}
   if(v){if(v._t)clearInterval(v._t);if(v._off)clearTimeout(v._off);setTimeout(()=>v.remove(),150);}
   resetIdle();
 }

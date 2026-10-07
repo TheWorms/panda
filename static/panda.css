@@ -71,18 +71,18 @@
   .railv.m-text .cat .cico{display:none}
   .homecol{flex:1;overflow-y:auto;padding:16px 18px}
   .homecol::-webkit-scrollbar{width:7px}.homecol::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-  .grid{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:132px;gap:14px}
-  .grid.narrow{grid-template-columns:repeat(5,1fr)}
-  .tile{background:var(--tile);border:1px solid var(--border-soft);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:7px;cursor:pointer;position:relative;overflow:hidden;user-select:none;transition:transform .06s,box-shadow .12s,border-color .12s}
-  .tile:active{transform:scale(.97)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:186px;gap:16px}
+  .grid.narrow{grid-template-columns:repeat(3,1fr)}
+  .tile{background:var(--tile);border:1px solid var(--border-soft);border-radius:22px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;position:relative;overflow:hidden;user-select:none;transition:transform .14s cubic-bezier(.2,.8,.2,1),border-color .14s,box-shadow .14s}
+  .tile:active{transform:scale(.93);border-color:var(--cc,var(--accent-dim));box-shadow:0 0 0 4px color-mix(in srgb,var(--cc,var(--accent)) 22%,transparent)}
   .tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .tile.dragging{box-shadow:0 12px 30px rgba(0,0,0,.5);border-color:var(--accent-dim);transform:scale(1.04);z-index:5}
-  .tile .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:21px;background:var(--tile-2);border:1px solid var(--border-soft)}
-  .tile .nm{font-size:13.5px;font-weight:600}
-  .tile .src{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:auto}
+  .tile .ic{width:74px;height:74px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;background:color-mix(in srgb,var(--cc,#888780) 15%,transparent);border:1px solid color-mix(in srgb,var(--cc,#888780) 28%,transparent)}
+  .tile .nm{font-size:18px;font-weight:750;text-align:center}
+  .tile .src{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:2px;text-align:center}
   .tile .src.fleet{color:var(--accent)}
-  .tile::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cc,var(--faint));opacity:.85}
-  .tile .upd{position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px var(--warn)}
+  .tile::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--cc,var(--faint));opacity:.9}
+  .tile .upd{position:absolute;top:14px;right:14px;width:11px;height:11px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px var(--warn)}
   .tile.add{border-style:dashed;border-color:var(--border);align-items:center;justify-content:center;color:var(--dim)}
   .tile.add::after{display:none}.tile.add .plus{font-size:26px}.tile.add .lbl{font-size:12px}
 
@@ -976,3 +976,57 @@
 .cathdrow{display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 4px;font-weight:600;color:var(--faint);user-select:none;border-top:1px solid var(--border-soft)}
 .cathdrow:hover{color:var(--fg)}
 .cathchevron{display:inline-block;width:14px;font-size:12px}
+/* ==== veille « en écoute » (now playing) — construite par buildVeil() dans panda.js ====
+   Affichée quand la Radio ou la Musique joue au déclenchement de la veille,
+   au choix dans Réglages (npStyle) : plateau | vinyle | onde. Fond noir fixe
+   (indépendant du thème), horloge d'angle, anti-marquage par léger déplacement. */
+#veil[data-np="1"]{background:#000}
+#veil[data-np="1"] .nclk{position:absolute;top:26px;left:34px;font-family:var(--mono);color:#cfd4dc;font-size:22px;letter-spacing:.03em;z-index:2}
+#veil[data-np="1"] .nclk small{display:block;font-size:12.5px;color:#5b6f80;margin-top:3px;font-weight:400}
+#veil[data-np="1"] .nhint{position:absolute;bottom:20px;right:30px;font-family:var(--mono);font-size:13px;color:#3d4f5f;z-index:2}
+#veil[data-np="1"] .nkind{font-family:var(--mono);font-size:15px;letter-spacing:.34em;color:var(--accent);text-transform:uppercase;font-weight:600}
+#veil[data-np="1"] .nnm{color:#e8f0f7;font-weight:750;line-height:1.04;overflow-wrap:break-word}
+#veil[data-np="1"] .nsub{font-family:var(--mono);color:#8ba0b2}
+/* A — plateau de nuit */
+#veil[data-style="plateau"] .nwrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:52px;padding:0 72px}
+#veil[data-np="1"] .ncov{width:236px;height:236px;border-radius:26px;flex:none;display:flex;align-items:center;justify-content:center;font-size:74px;background:linear-gradient(145deg,#101a24,#0a1016);border:1px solid #1a2632;box-shadow:0 0 90px rgba(45,212,191,.13),0 22px 60px rgba(0,0,0,.55);overflow:hidden}
+#veil[data-np="1"] .ncov img{width:100%;height:100%;object-fit:cover}
+#veil[data-np="1"] .ninfo{min-width:0;max-width:540px}
+#veil[data-np="1"] .ninfo .nkind{margin-bottom:16px}
+#veil[data-np="1"] .ninfo .nnm{font-size:58px;margin-bottom:14px}
+#veil[data-np="1"] .ninfo .nsub{font-size:20px;margin-bottom:34px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#veil[data-np="1"] .neq{display:flex;align-items:flex-end;gap:7px;height:44px}
+#veil[data-np="1"] .neq i{width:9px;border-radius:3px;background:linear-gradient(180deg,var(--accent),rgba(45,212,191,.25));animation:npEq 1.3s ease-in-out infinite alternate}
+#veil[data-prog="1"] .neq{display:none}
+#veil[data-np="1"] .nprog{display:none;width:100%;max-width:470px}
+#veil[data-prog="1"] .nprog{display:block}
+#veil[data-np="1"] .npbar{height:5px;border-radius:3px;background:#182430;overflow:hidden}
+#veil[data-np="1"] .npfill{height:100%;border-radius:3px;background:var(--accent);box-shadow:0 0 12px rgba(45,212,191,.55)}
+#veil[data-np="1"] .nptime{font-family:var(--mono);font-size:16px;color:#5b6f80;margin-top:10px}
+#veil[data-np="1"] .nptime b{color:#9fb4c6;font-weight:500}
+@keyframes npEq{from{height:12%}to{height:100%}}
+/* B — vinyle */
+#veil[data-style="vinyle"] .nwrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding-top:6px}
+#veil[data-np="1"] .ndisc{width:296px;height:296px;border-radius:50%;flex:none;position:relative;background:repeating-radial-gradient(circle at 50% 50%,#0b0b0b 0 2.5px,#141414 2.5px 5px);border:1px solid #1d1d1d;box-shadow:0 0 70px rgba(0,0,0,.85),0 26px 50px rgba(0,0,0,.5);animation:npSpin 5.6s linear infinite}
+@keyframes npSpin{to{transform:rotate(360deg)}}
+#veil[data-np="1"] .nlbl{position:absolute;inset:34.5%;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;border:3px solid rgba(0,0,0,.4);background:radial-gradient(circle at 38% 32%,#1fa396,#0c6157 70%);overflow:hidden}
+#veil[data-np="1"] .nlbl img{width:100%;height:100%;object-fit:cover}
+#veil[data-np="1"] .ndisc::after{content:"";position:absolute;left:50%;top:50%;width:11px;height:11px;border-radius:50%;background:#050505;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #000}
+#veil[data-style="vinyle"] .ntxt{text-align:center}
+#veil[data-style="vinyle"] .ntxt .nkind{margin-bottom:12px}
+#veil[data-style="vinyle"] .ntxt .nnm{font-size:46px;margin-bottom:10px}
+#veil[data-style="vinyle"] .ntxt .nsub{font-size:19px}
+/* C — onde pleine */
+#veil[data-style="onde"]{overflow:hidden}
+#veil[data-np="1"] .nblob{position:absolute;width:560px;height:560px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(45,212,191,.13),transparent 60%)}
+#veil[data-np="1"] .nblob.nb1{top:-160px;left:-90px;animation:npDr1 19s ease-in-out infinite alternate}
+#veil[data-np="1"] .nblob.nb2{bottom:-220px;right:-60px;background:radial-gradient(circle,rgba(46,109,212,.11),transparent 60%);animation:npDr2 23s ease-in-out infinite alternate}
+@keyframes npDr1{to{transform:translate(130px,90px) scale(1.14)}}
+@keyframes npDr2{to{transform:translate(-120px,-80px) scale(1.2)}}
+#veil[data-style="onde"] .ntxtc{position:absolute;inset:0 0 120px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 80px}
+#veil[data-style="onde"] .ntxtc .nkind{margin-bottom:20px}
+#veil[data-style="onde"] .ntxtc .nnm{font-size:66px;margin-bottom:16px}
+#veil[data-style="onde"] .ntxtc .nsub{font-size:22px}
+#veil[data-np="1"] .nwave{position:absolute;left:0;right:0;bottom:0;height:96px;display:flex;align-items:center;justify-content:center;gap:5px}
+#veil[data-np="1"] .nwave i{width:9px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,rgba(45,212,191,.6),rgba(45,212,191,.06));animation:npEq 1.15s ease-in-out infinite alternate}
+
