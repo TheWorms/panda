@@ -1,35 +1,52 @@
 /* Arbitrage audio du kiosk : les <audio> créés via « new Audio » ne sont
    pas rattachés au DOM — leurs événements « play » n'atteignent jamais
    document. Ce wrapper émet « panda-audio-play / -pause / -ended » sur
-   window pour chaque lecture détachée : le socle (veille « en écoute »)
-   et les addons (ex. la Radio qui s'efface quand la Musique démarre)
-   peuvent réagir. Arbitrage centralisé : au « play » d'un élément, tout
-   autre audio encore en lecture est mis en pause — un seul son audible
-   à la fois, garanti par le socle pour tous les addons. */
+   window pour toute lecture audio, et garantit l'arbitrage : au « play »
+   d'un élément, tout autre audio encore en lecture est mis en pause —
+   un seul son audible à la fois, pour tous les addons. */
 (function(){
   const NativeAudio = window.Audio;
   if(!NativeAudio) return;
   const live = new Set(); /* éléments audio susceptibles d'être en lecture */
-  function PandaAudio(src){
-    const el = (src === undefined) ? new NativeAudio() : new NativeAudio(src);
+  const seen = new WeakSet(); /* éléments déjà instrumentés */
+  /* watch : instrumente un élément audio (bus + arbitrage), idempotent. */
+  function watch(el){
+    if(!el || seen.has(el)) return;
+    try{ seen.add(el); }catch(e){ return; }
     const emit = (name) => { try{ window.dispatchEvent(new CustomEvent(name, {detail:{el:el}})); }catch(e){} };
-    el.addEventListener('play',  function(){
+    el.addEventListener('play', function(){
       /* Arbitrage : tout autre audio encore en lecture est coupé AVANT
          d'émettre « panda-audio-play » (son propre « pause » émis prévient
          le socle et son addon). Un élément coupé se réinscrit ici dès
-         qu'il est repris, donc l'arbitrage tient aussi après reprise. */
+         qu'il est repris, donc l'arbitrage tient aussi après reprise.
+         Le toast est le témoin visuel de l'arbitrage : il confirme que
+         le balayage s'est exécuté sur le kiosk (diagnostic 1.12.4). */
       live.add(el);
-      for(const o of live){ if(o!==el && !o.paused){ try{ o.pause(); }catch(e){} } }
+      let cut = 0;
+      for(const o of live){ if(o!==el && !o.paused){ try{ o.pause(); cut++; }catch(e){} } }
       for(const o of live){ if(o.paused || o.ended){ live.delete(o); } }
+      if(cut > 0){ try{ toast('⏸ Arbitrage : autre lecture coupée'); }catch(e){} }
       emit('panda-audio-play');
     });
     el.addEventListener('pause', function(){ emit('panda-audio-pause'); });
     el.addEventListener('ended', function(){ emit('panda-audio-ended'); });
+  }
+  function PandaAudio(src){
+    const el = (src === undefined) ? new NativeAudio() : new NativeAudio(src);
+    watch(el);
     return el;
   }
   PandaAudio.prototype = NativeAudio.prototype;
   if (typeof NativeAudio.canPlayType === 'function') PandaAudio.canPlayType = function(t){ return NativeAudio.canPlayType(t); };
   try{ Object.defineProperty(window, 'Audio', {value: PandaAudio, writable: true, configurable: true}); }catch(e){}
+  /* Ceinture et bretelles : un <audio> créé hors de « new Audio »
+     (createElement, innerHTML…) serait invisible du bus. Son premier
+     .play() l'instrumente : aucune source ne peut y échapper, quel que
+     soit son mode de création. */
+  try{
+    const proto = HTMLMediaElement.prototype, origPlay = proto.play;
+    proto.play = function(){ watch(this); return origPlay.apply(this, arguments); };
+  }catch(e){}
 })();
 
 const CATS={
