@@ -3,14 +3,26 @@
    document. Ce wrapper émet « panda-audio-play / -pause / -ended » sur
    window pour chaque lecture détachée : le socle (veille « en écoute »)
    et les addons (ex. la Radio qui s'efface quand la Musique démarre)
-   peuvent réagir — un seul son audible à la fois. */
+   peuvent réagir. Arbitrage centralisé : au « play » d'un élément, tout
+   autre audio encore en lecture est mis en pause — un seul son audible
+   à la fois, garanti par le socle pour tous les addons. */
 (function(){
   const NativeAudio = window.Audio;
   if(!NativeAudio) return;
+  const live = new Set(); /* éléments audio susceptibles d'être en lecture */
   function PandaAudio(src){
     const el = (src === undefined) ? new NativeAudio() : new NativeAudio(src);
     const emit = (name) => { try{ window.dispatchEvent(new CustomEvent(name, {detail:{el:el}})); }catch(e){} };
-    el.addEventListener('play',  function(){ emit('panda-audio-play'); });
+    el.addEventListener('play',  function(){
+      /* Arbitrage : tout autre audio encore en lecture est coupé AVANT
+         d'émettre « panda-audio-play » (son propre « pause » émis prévient
+         le socle et son addon). Un élément coupé se réinscrit ici dès
+         qu'il est repris, donc l'arbitrage tient aussi après reprise. */
+      live.add(el);
+      for(const o of live){ if(o!==el && !o.paused){ try{ o.pause(); }catch(e){} } }
+      for(const o of live){ if(o.paused || o.ended){ live.delete(o); } }
+      emit('panda-audio-play');
+    });
     el.addEventListener('pause', function(){ emit('panda-audio-pause'); });
     el.addEventListener('ended', function(){ emit('panda-audio-ended'); });
     return el;
