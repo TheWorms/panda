@@ -2070,11 +2070,11 @@ function storeItemNode(a){
   const _logo=a.logo||(by?by.logo:'');
   const _ico=storeLogoHtml(a,_logo,icoName,icoCol);
   const dim=(a.status==='installe'||a.status==='incompatible')?' dimmed':'';
-  // méta avec version effective : installée si installé, version d'index sinon
+  // version effective : installée si installé, version d'index sinon (affichée en face du bouton)
   const efv=(a.status==='installe'&&(a.installed_version||a.version))||a.version||'';
   const ver=efv?('v'+efv):'';
-  const metaCard=[ver,kb,a.category].filter(Boolean).join(' · ');
-  const metaRow=[ver,kb,a.category,a.description].filter(Boolean).join(' · ');
+  const metaCard=[kb,a.category].filter(Boolean).join(' · ');
+  const metaRow=[kb,a.category,a.description].filter(Boolean).join(' · ');
   let el,acts;
   if(appViews[appTab]==='cards'){
     el=document.createElement('div');el.className='appcard st-'+a.status+dim+(a.status==='incompatible'?' off':'');
@@ -2089,6 +2089,7 @@ function storeItemNode(a){
       '<div class="rmeta">'+(metaRow||'—')+'</div></div>';
     acts=document.createElement('div');acts.className='racts';
   }
+  if(ver){const av=document.createElement('span');av.className='aver';av.textContent=ver;acts.appendChild(av);}
   const an=storeActionNode(a);if(an)acts.appendChild(an);
   el.appendChild(acts);
   el.addEventListener('click',()=>openAddonDetail(a));
@@ -2096,7 +2097,7 @@ function storeItemNode(a){
 }
 function storeBadge(a){
   if(a.status==='maj')return ' <span class="updbadge">⬆ MISE À JOUR '+a.installed_version+' → '+a.version+'</span>';
-  if(a.status==='installe')return ' <span class="instbadge">✓ à jour'+((a.installed_version||a.version)?(' · v'+(a.installed_version||a.version)):'')+'</span>';
+  if(a.status==='installe')return ' <span class="instbadge">✓ à jour</span>';
   if(a.status==='incompatible')return ' <span class="warnbadge">incompatible</span>';
   if(a.status==='disponible')return ' <span class="newbadge">✨ NOUVEAU</span>';
   return '';
