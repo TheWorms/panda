@@ -342,21 +342,7 @@
   .wch{display:inline-block;padding:2px 10px;border:1px solid var(--border-soft);border-radius:20px;margin-left:6px;cursor:pointer;font-size:11px;color:var(--dim)}
   .wch.on{background:var(--accent-tint);border-color:var(--accent);color:var(--accent)}
   .wsrc{padding:8px 22px 18px;font-size:10.5px;color:var(--faint);font-family:var(--mono);line-height:1.5}
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   .wtweek{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:0 22px 16px}
   .wtcard{background:var(--tile);border:1px solid var(--border-soft);border-radius:10px;padding:8px 6px}
   .wtcn{font-size:12px;font-weight:600;text-transform:capitalize;text-align:center}
@@ -413,9 +399,7 @@
   .phst{background:var(--bg);border-radius:8px;padding:7px 6px;text-align:center}
   .phst b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
   .phst span{font-size:10px;color:var(--dim)}
-  
-  
-  
+
   .gylist{display:grid;grid-template-columns:1fr 1fr;gap:7px}
   .gyrow{display:flex;align-items:center;gap:10px;background:var(--tile);border:1px solid var(--border-soft);border-radius:10px;padding:8px 12px}
   .gyrow.done{opacity:.45;text-decoration:line-through}
@@ -437,9 +421,6 @@
   .agcd{text-align:center;font-size:15px;font-weight:700;margin-bottom:7px}
   .agcol.today .agcd{color:var(--accent)}
   .agev{background:var(--bg);
-        background:color-mix(in srgb, var(--evc,#2dd4bf) 20%, var(--tile));
-        border:1px solid color-mix(in srgb, var(--evc,#2dd4bf) 45%, transparent);
-        border-left:3px solid var(--evc,var(--accent));border-radius:6px;padding:4px 6px;margin-bottom:5px}
         background:color-mix(in srgb, var(--evc,#2dd4bf) 20%, var(--tile));
         border:1px solid color-mix(in srgb, var(--evc,#2dd4bf) 45%, transparent);
         border-left:3px solid var(--evc,var(--accent));border-radius:6px;padding:4px 6px;margin-bottom:5px}
@@ -468,10 +449,6 @@
         border-left:2px solid var(--evc,var(--accent));
         border-radius:3px;padding:0 3px;margin-bottom:1.5px;
         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        background:color-mix(in srgb, var(--evc,#2dd4bf) 24%, var(--tile));
-        border-left:2px solid var(--evc,var(--accent));
-        border-radius:3px;padding:0 3px;margin-bottom:1.5px;
-        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   .agmore{font-size:8.5px;color:var(--accent);font-weight:600;padding-left:2px}
   .agform{grid-template-columns:2fr 1fr 1fr 1fr auto}
@@ -492,21 +469,15 @@
   #rdBar{display:none;align-items:center;gap:7px;background:rgba(232,99,90,.14);border:1px solid #e8635a;
          color:#e8635a;border-radius:9px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;
          margin-left:10px;max-width:230px;overflow:hidden}
-         color:#e8635a;border-radius:9px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;
-         margin-left:10px;max-width:230px;overflow:hidden}
   #rdBar .rdmarq{overflow:hidden;white-space:nowrap;max-width:150px;color:var(--text);font-weight:400}
   #rdBar .rdmarq span{display:inline-block;padding-left:100%;animation:rdscroll 12s linear infinite}
   #tmBar{display:none;align-items:center;gap:7px;background:var(--accent-tint);border:1px solid var(--accent);
-         color:var(--accent);border-radius:9px;padding:4px 11px;font-size:12.5px;font-weight:700;cursor:pointer;
-         margin-left:10px;font-variant-numeric:tabular-nums}
          color:var(--accent);border-radius:9px;padding:4px 11px;font-size:12.5px;font-weight:700;cursor:pointer;
          margin-left:10px;font-variant-numeric:tabular-nums}
   #tmBar.ring{background:rgba(224,82,82,.16);border-color:var(--bad);color:var(--bad);animation:tmpulse 1s infinite}
   @keyframes tmpulse{0%,100%{opacity:1}50%{opacity:.55}}
   #tmBar .tmn{font-weight:400;color:var(--text);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #muBar{display:none;align-items:center;gap:6px;background:rgba(201,138,240,.14);border:1px solid #c98af0;
-         color:#c98af0;border-radius:9px;padding:3px 6px 3px 10px;font-size:12px;font-weight:600;
-         margin-left:10px;max-width:250px}
          color:#c98af0;border-radius:9px;padding:3px 6px 3px 10px;font-size:12px;font-weight:600;
          margin-left:10px;max-width:250px}
   #muBar .mut{color:var(--text);font-weight:400;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
@@ -516,9 +487,7 @@
   @keyframes rdscroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
   .rdpulse{width:8px;height:8px;border-radius:50%;background:#e8635a;flex:none;animation:rdblink 1.4s ease-in-out infinite}
   @keyframes rdblink{0%,100%{opacity:1}50%{opacity:.25}}
-  
-  
-  
+
   .fjbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .fjwrap{display:flex;gap:14px;align-items:flex-start}
   #fjLeft{flex:1;min-width:0}
@@ -643,29 +612,7 @@
             color:var(--accent);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tprecbox{background:var(--panel,#1b1f24);border:1px solid var(--border-soft);border-radius:14px;padding:18px;
             width:600px;max-width:94vw;max-height:86vh;overflow-y:auto;overflow-x:hidden}
-  
-          
-  
-  
-  
-  
-  
-  
-  
-  
-  
-         
-  
-  
-  
-  
-  
-         background:var(--tile);border:1px solid var(--border-soft);border-radius:9px;padding:8px 12px;margin-bottom:5px}
-  
-  
-  
-          
-  
+
   .iggrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
   .igtile{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--tile);
           border:1px solid var(--border-soft);cursor:pointer}
@@ -683,8 +630,6 @@
   .igstage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0;padding:0 8px}
   .igstage img,.igstage video{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
   .ignav{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;
-         background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;
-         font-size:24px;cursor:pointer;user-select:none;border:1px solid rgba(255,255,255,.18)}
          background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;
          font-size:24px;cursor:pointer;user-select:none;border:1px solid rgba(255,255,255,.18)}
   .ignav.prev{left:14px}.ignav.next{right:14px}
@@ -724,8 +669,6 @@
   .igtrashicon{position:absolute;top:6px;left:6px;width:28px;height:28px;border-radius:8px;
        background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;
        font-size:13px;cursor:pointer}
-       background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;
-       font-size:13px;cursor:pointer}
   .igtrashicon:active{background:rgba(224,82,82,.85)}
   .igcount{margin-left:auto;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
   .igbtn2{padding:8px 14px;border-radius:9px;border:1px solid var(--border-soft);background:var(--tile);
@@ -736,8 +679,6 @@
   .igbtn2.danger:active{background:rgba(224,82,82,.18)}
   .igbtn2[disabled]{opacity:.45;pointer-events:none}
   .igbub{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;
-         border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.35);display:none;
-         align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
          border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.35);display:none;
          align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
   .iggrid.select .igbub{display:flex}
@@ -773,8 +714,6 @@
   .agchip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;
     background:var(--tile);border:1px solid var(--border-soft);font-size:12px;font-weight:600;
     color:var(--text);cursor:pointer;user-select:none;transition:opacity .12s,border-color .12s}
-    background:var(--tile);border:1px solid var(--border-soft);font-size:12px;font-weight:600;
-    color:var(--text);cursor:pointer;user-select:none;transition:opacity .12s,border-color .12s}
   .agchip.off{opacity:.4;text-decoration:line-through}
   .agdot{width:9px;height:9px;border-radius:50%;flex:none}
   .calrow{display:grid;grid-template-columns:1fr 44px 52px;align-items:center;gap:10px;
@@ -787,8 +726,6 @@
           background:var(--tile);border:1px solid var(--border-soft);border-left:4px solid var(--evc,var(--accent))}
   .dayopt:active{border-color:var(--evc,var(--accent))}
   .daytime{background:var(--bg);background:color-mix(in srgb, var(--evc,#2dd4bf) 30%, var(--tile));
-           border:1px solid color-mix(in srgb, var(--evc,#2dd4bf) 55%, transparent);
-           border-radius:7px;padding:4px 8px;font-size:11.5px;font-weight:700;min-width:66px;text-align:center;flex:none}
            border:1px solid color-mix(in srgb, var(--evc,#2dd4bf) 55%, transparent);
            border-radius:7px;padding:4px 8px;font-size:11.5px;font-weight:700;min-width:66px;text-align:center;flex:none}
   .daytitle{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -804,33 +741,7 @@
   .kvbar{height:8px;border-radius:5px;background:var(--border-soft);overflow:hidden}
   .kvfill{height:100%;border-radius:5px;background:var(--accent)}
   .kvsub{font-size:11px;color:var(--dim);margin-top:5px;display:flex;justify-content:space-between}
-  
-  
-          
-  
-  
-          
-  
-  
-  
-  
-            border-radius:12px;padding:12px 16px;margin-bottom:12px}
-  
-  
-  
-  
-  
-  
-  
-  
-         
-  
-  
-  
-  
-  
-         
-  
+
   .agcal-chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:5px 10px;border-radius:8px;
               border:1px solid var(--border-soft);background:var(--tile);cursor:pointer;user-select:none}
   .agcal-chip.off{opacity:.4}
@@ -845,43 +756,11 @@
         background:color-mix(in srgb, var(--evc,#2dd4bf) 30%, var(--tile));
         border:1px solid color-mix(in srgb, var(--evc,#2dd4bf) 55%, transparent);
         border-radius:7px;padding:5px 9px;font-weight:700;font-size:12px;min-width:104px;text-align:center;flex:none}
-        background:color-mix(in srgb, var(--evc,#2dd4bf) 30%, var(--tile));
-        border:1px solid color-mix(in srgb, var(--evc,#2dd4bf) 55%, transparent);
-        border-radius:7px;padding:5px 9px;font-weight:700;font-size:12px;min-width:104px;text-align:center;flex:none}
   .agt{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
   .agtitle{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .agloc{margin-left:auto;font-size:11px;color:var(--dim);flex:none}
   .agcal{font-size:10px;color:var(--faint);flex:none}
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   .fjgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
   .fjcard{background:var(--tile);border:1px solid var(--border-soft);border-radius:11px;padding:10px 12px}
   .fjpriv{font-size:9.5px;padding:2px 6px;border-radius:5px;background:var(--bg);color:var(--dim);flex:none}
