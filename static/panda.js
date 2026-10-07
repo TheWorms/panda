@@ -57,7 +57,7 @@ function save(){
   clearTimeout(pushT);
   pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,font:state.font})}).catch(()=>{});},250);
 }
-async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){Object.assign(state,await r.json());sanitize();}}catch(e){}}
+async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){const j=await r.json();/* Secrets (storeToken, updBetaToken, browserPw) masqués aux non-admin : le serveur ne renvoie que has_<clé>=true. On ne les recopie pas dans state pour ne pas écraser la valeur connue (une sauvegarde ultérieure d'un admin renverrait un jeton vide). */for(const k of ['storeToken','updBetaToken','browserPw']){if(j['has_'+k]&&!j[k])delete j[k];}Object.assign(state,j);sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
    chargement, rendant leur désinstallation impossible. Les défauts vivent
    désormais dans registry/<id>/manifest.json (default_installed). */
@@ -1100,7 +1100,7 @@ function renderAdminGate(target){
     try{
       const r=await fetch('/api/admin/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:inp.value})});
       const j=await r.json();
-      if(j.ok){isAdmin=true;await refreshSession();curSec=target;renderSettings();}
+      if(j.ok){isAdmin=true;await refreshSession();await pullConfig();curSec=target;renderSettings();}
       else if(j.wait)err.textContent='Trop d\'essais — réessaie dans '+j.wait+' s';
       else err.textContent='Mot de passe incorrect'+(j.remaining!=null?' ('+j.remaining+' essai(s) restant(s))':'');
     }catch(e){err.textContent='Serveur injoignable';}

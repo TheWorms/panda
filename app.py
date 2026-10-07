@@ -37,7 +37,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 SECRET_FILE = os.path.join(BASE_DIR, "secret.key")
 
-APP_VERSION = "1.11.5"
+APP_VERSION = "1.11.6"
 DEFAULT_PIN = "123456"
 DEFAULT_ADMIN_PW = "admin"
 # Store Abeille : URL racine (brute, IP directe — jamais via Caddy) où vivent
@@ -86,14 +86,39 @@ ADMIN_TTL = 900   # session admin : 15 min, redemande le mot de passe ensuite (k
 
 
 def _secret():
-    if os.path.exists(SECRET_FILE):
+    """Clé de signature des sessions : lue, ou créée UNE seule fois.
+
+    gunicorn tourne avec 2 workers sans --preload : app.py est importé dans
+    chacun, et l'ancienne écriture simple (test exists → write) laissait les
+    deux workers générer chacun leur secret, le second écrasant le premier.
+    Les cookies de session étaient alors signés différemment selon le worker
+    qui répondait : PIN accepté puis rejeté aléatoirement. O_CREAT|O_EXCL
+    garantit qu'un seul worker gagne la création ; les autres relisent."""
+    try:
         with open(SECRET_FILE, "rb") as fh:
-            return fh.read()
+            data = fh.read()
+        if data:
+            return data
+    except OSError:
+        pass
     s = secrets.token_bytes(32)
-    with open(SECRET_FILE, "wb") as fh:
-        fh.write(s)
-    os.chmod(SECRET_FILE, 0o600)
-    return s
+    try:
+        fd = os.open(SECRET_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(s)
+        return s
+    except FileExistsError:
+        # un autre worker vient de gagner la création : on relit son secret
+        for _ in range(50):
+            try:
+                with open(SECRET_FILE, "rb") as fh:
+                    data = fh.read()
+                if data:
+                    return data
+            except OSError:
+                pass
+            time.sleep(0.1)
+        raise RuntimeError("secret.key illisible après création concurrente")
 
 
 app.secret_key = _secret()
@@ -217,8 +242,17 @@ def _load():
 
 
 def _save(cfg):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as fh:
+    """Écrit config.json de façon atomique, en 0600.
+
+    Le fichier contient des secrets : tokens des services personnels
+    (modules), storeToken/updBetaToken (réglages). Avec l'umask par défaut
+    (022) il resterait lisible par tout le système. L'écriture tmp+rename
+    supprime aussi les lectures déchirées entre workers gunicorn."""
+    tmp = CONFIG_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh, ensure_ascii=False, indent=2)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, CONFIG_FILE)
 
 
 def _migrate_kitchenowl_cfg():
@@ -248,9 +282,30 @@ def _migrate_kitchenowl_cfg():
             return
 
 
+# Secrets de niveau RÉGLAGES (hors modules) : jamais renvoyés à une session
+# non-admin — même motif que _redact() pour les modules.
+_CONFIG_SECRET_KEYS = ("storeToken", "updBetaToken", "browserPw")
+
+
 def _public(cfg):
-    return {k: v for k, v in cfg.items()
-            if k not in ("pin_hash", "admin_hash", "modules")}
+    """Vue de la config servie par /api/config.
+
+    Retire toujours les hachés (pin/admin) et la configuration des modules
+    (tokens des services personnels). Les secrets de réglages (storeToken,
+    updBetaToken, browserPw) ne sont renvoyés qu'à un admin actif ; pour les
+    autres sessions, seule leur présence est exposée : has_storeToken=true.
+    Le frontend conserve alors sa valeur locale et ne l'écrase pas à la
+    sauvegarde (cf. pullConfig)."""
+    out = {}
+    admin = _is_admin()
+    for k, v in cfg.items():
+        if k in ("pin_hash", "admin_hash", "modules"):
+            continue
+        if k in _CONFIG_SECRET_KEYS and not admin:
+            out["has_" + k] = bool(v)
+        else:
+            out[k] = v
+    return out
 
 
 def _is_open():
@@ -1591,9 +1646,12 @@ def _test_module(mid, c):
                                    if isinstance(v, list)) or "réponse OK"
                 return True, f"{dm['name']} ✓ — {counts}"
             return False, f"{dm['name']} ✗ ({res.get('reason')})"
-        # générique : simple joignabilité
+        # générique : simple joignabilité. TLS vérifié comme pour le store
+        # (bundle CA système si présent) — jamais verify=False, qui ouvrirait
+        # au MITM sur un réseau local malveillant.
         if url:
-            r = requests.get(url, timeout=4, verify=False, allow_redirects=True)
+            r = requests.get(url, timeout=4, verify=_store_verify(),
+                             allow_redirects=True)
             return (r.status_code < 500), f"HTTP {r.status_code}"
         return False, "Aucune URL à tester"
     except requests.exceptions.RequestException as e:
