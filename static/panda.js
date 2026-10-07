@@ -2437,7 +2437,7 @@ function secApparence(){
     '<div class="setrow"><div class="lft"><div class="t">Mise en veille écran</div><div class="d">Éteint l\'écran après une période d\'inactivité (un toucher rallume, sans rien déclencher)</div></div><select class="inp" id="veille">'+'<option value="0"'+(state.veille===0?' selected':'')+'>Jamais</option>'+'<option value="5"'+(state.veille===5?' selected':'')+'>5 min</option>'+'<option value="15"'+(state.veille===15?' selected':'')+'>15 min</option>'+'<option value="30"'+(state.veille===30?' selected':'')+'>30 min</option>'+'<option value="60"'+(state.veille===60?' selected':'')+'>1 h</option>'+'<option value="120"'+(state.veille===120?' selected':'')+'>2 h</option>'+'<option value="180"'+(state.veille===180?' selected':'')+'>3 h</option>'+'<option value="360"'+(state.veille===360?' selected':'')+'>6 h</option>'+'<option value="720"'+(state.veille===720?' selected':'')+'>12 h</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Pendant la veille</div><div class="d">Écran éteint (économie maximale), ou horloge affichée — avec la météo du bandeau si disponible. Un toucher réveille.</div></div><select class="inp" id="veilleMode">'+'<option value="off"'+((state.veilleMode||'off')==='off'?' selected':'')+'>Écran éteint</option>'+'<option value="clock"'+(state.veilleMode==='clock'?' selected':'')+'>Horloge</option>'+'<option value="meteo"'+(state.veilleMode==='meteo'?' selected':'')+'>Horloge + météo</option>'+'</select></div>'+
     '<div class="setrow" id="veilleOffRow" style="'+(((state.veilleMode||'off')!=='off')?'':'display:none')+'"><div class="lft"><div class="t">Extinction totale après</div><div class="d">En mode horloge, éteint complètement la dalle après ce délai supplémentaire (économie maximale). Un toucher rallume.</div></div><select class="inp" id="veilleOff" style="max-width:160px">'+'<option value="0"'+((state.veilleOff||0)===0?' selected':'')+'>Jamais</option>'+'<option value="15"'+(state.veilleOff===15?' selected':'')+'>+ 15 min</option>'+'<option value="30"'+(state.veilleOff===30?' selected':'')+'>+ 30 min</option>'+'<option value="60"'+(state.veilleOff===60?' selected':'')+'>+ 1 h</option>'+'<option value="120"'+(state.veilleOff===120?' selected':'')+'>+ 2 h</option>'+'<option value="180"'+(state.veilleOff===180?' selected':'')+'>+ 3 h</option>'+'<option value="360"'+(state.veilleOff===360?' selected':'')+'>+ 6 h</option>'+'<option value="720"'+(state.veilleOff===720?' selected':'')+'>+ 12 h</option>'+'</select></div>'+
-    '<div class="setrow"><div class="lft"><div class="t">Écran pendant une lecture</div><div class="d">Quand la Radio ou la Musique joue au moment de la veille, affiche un écran « en écoute » au lieu du voile noir (un toucher réveille toujours)</div></div><select class="inp" id="npStyle" style="max-width:170px">'+'<option value="plateau"'+((state.npStyle||'plateau')==='plateau'?' selected':'')+'>Plateau de nuit</option>'+'<option value="vinyle"'+((state.npStyle||'')==='vinyle'?' selected':'')+'>Vinyle</option>'+'<option value="onde"'+((state.npStyle||'')==='onde'?' selected':'')+'>Onde pleine</option>'+'<option value="none"'+((state.npStyle||'')==='none'?' selected':'')+'>Voile noir habituel</option>'+'</select></div>'+
+    '<div class="setrow"><div class="lft"><div class="t">Écran pendant une lecture</div><div class="d">Quand la Radio ou la Musique joue au moment de la veille, visuel par défaut — la Musique impose Vinyle, la Radio impose Onde ; « Voile noir » coupe tout écran en écoute (un toucher réveille toujours)</div></div><select class="inp" id="npStyle" style="max-width:170px">'+'<option value="plateau"'+((state.npStyle||'plateau')==='plateau'?' selected':'')+'>Plateau de nuit</option>'+'<option value="vinyle"'+((state.npStyle||'')==='vinyle'?' selected':'')+'>Vinyle</option>'+'<option value="onde"'+((state.npStyle||'')==='onde'?' selected':'')+'>Onde pleine</option>'+'<option value="none"'+((state.npStyle||'')==='none'?' selected':'')+'>Voile noir habituel</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Taille du texte</div><div class="d">Agrandir ou réduire l\'affichage</div></div><div class="seg" id="segFont"><button data-fs="92">A−</button><button data-fs="100">A</button><button data-fs="108">A+</button><button data-fs="116">A++</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Rotation</div><div class="d">Orientation de l\'affichage</div></div><select class="inp" id="rotSel" style="max-width:150px"><option value="normal">Normale</option><option value="left">90° gauche</option><option value="right">90° droite</option><option value="inverted">180°</option></select></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Accueil</div>'+
@@ -2873,18 +2873,20 @@ let veilleT=null,screenIsOff=false;
    un écran « en écoute » au lieu du voile noir — la dalle reste allumée
    pour montrer ce qui joue. Un toucher réveille toujours (aucune commande dans
    l'écran : le premier toucher ne doit rien déclencher dessous).
-   Données : « panda-audio-meta » (poussées par les addons) ; état de lecture :
+   Données : « panda-audio-meta » (poussées par les addons — elles peuvent
+   imposer leur visuel via « style » : Musique→vinyle, Radio→onde) ; lecture :
    bus audio « panda-audio-play / -pause / -ended » (wrapper de new Audio,
    en tête de fichier). Anti-marquage : léger déplacement chaque minute.
    Si la lecture s'arrête pendant la veille, le voile configuré reprend
    (noir ou horloge) ; « Extinction totale après » s'applique aussi. */
 let npMeta=null,npNow=null,npDeb=null,dalleOff=false;
+const npEffStyle=()=>((npNow&&npNow.style)||state.npStyle||'plateau'); /* visuel imposé par la source (panda-audio-meta), sinon réglage par défaut */
 const npEsc=s=>String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const npFmt=s=>{if(!isFinite(s)||s<0)return '0:00';const m2=Math.floor(s/60);return m2+':'+String(Math.floor(s%60)).padStart(2,'0');};
 const _dalleOn=on=>fetch('/api/system/screen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:on})}).catch(()=>{});
 window.addEventListener('panda-audio-meta',e=>{const d=e.detail||{};
   if(d.clear){if(npMeta&&(!d.el||npMeta.el===d.el))npMeta=null;}
-  else npMeta={kind:d.kind||'',name:d.name||'',sub:d.sub||'',icon:d.icon||'',dur:d.dur||0,el:d.el||null};
+  else npMeta={kind:d.kind||'',name:d.name||'',sub:d.sub||'',icon:d.icon||'',dur:d.dur||0,style:d.style||'',el:d.el||null};
   npRefresh();});
 window.addEventListener('panda-audio-play',e=>{const el=e.detail&&e.detail.el;
   npNow=(npMeta&&npMeta.el===el)?Object.assign({},npMeta):{kind:'Lecture audio',name:'En cours de lecture',sub:'',icon:'',dur:0,el:el};
@@ -2897,7 +2899,7 @@ function npRefresh(){
   // un changement de piste enchaîne pause+play en quelques millisecondes)
   if(!screenIsOff)return;clearTimeout(npDeb);
   npDeb=setTimeout(()=>{const v=document.getElementById('veil');
-    const isNp=!!(v&&v._np),wantNp=!!npNow&&(state.npStyle||'plateau')!=='none';
+    const isNp=!!(v&&v._np),wantNp=!!npNow&&npEffStyle()!=='none';
     if(isNp!==wantNp)buildVeil();},300);}
 function screenOff(){
   if(screenIsOff)return;
@@ -2915,11 +2917,11 @@ function buildVeil(){
   const v=document.createElement('div');v.id='veil';
   // le voile capte le premier toucher (rallumage) sans cliquer l'interface dessous
   v.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();screenOn();},{once:true,capture:true});
-  const np=!!npNow&&(state.npStyle||'plateau')!=='none';
+  const np=!!npNow&&npEffStyle()!=='none';
   if(np){
-    /* ---- écran « en écoute » : visuel au choix dans les réglages ---- */
+    /* ---- écran « en écoute » : visuel imposé par la source, sinon réglages ---- */
     v._np=true;v.dataset.np='1';
-    const d=npNow,st=state.npStyle||'plateau';
+    const d=npNow,st=npEffStyle();
     v.dataset.style=st;v.dataset.prog=(d.dur>0?'1':'0');
     const ic=d.icon?'<img src="'+npEsc(d.icon)+'" onerror="this.replaceWith(document.createTextNode(\'🔊\'))">':(d.dur>0?'🎵':'📻');
     let h='<div class="nclk" id="npvClk"></div>';

@@ -53,9 +53,10 @@ window.PandaAddons.radio = (function () {
       audio = new Audio(st.url);
       audio.play().catch(e => { const er = document.getElementById('rdErr'); if (er) er.textContent = 'Lecture impossible : ' + e.message; });
       current = st;
-      /* Métadonnées pour la veille « en écoute » du socle (écran now playing). */
+      /* Métadonnées pour la veille « en écoute » du socle (écran now playing)
+         — la radio impose son visuel « onde ». */
       try { window.dispatchEvent(new CustomEvent('panda-audio-meta', {detail:{el:audio, kind:'Radio · en écoute', name:st.name,
-        sub:[st.country, (st.codec||'').toUpperCase(), st.bitrate ? st.bitrate+' kbps' : ''].filter(Boolean).join(' · '), icon:st.favicon||''}})); } catch(e){}
+        sub:[st.country, (st.codec||'').toUpperCase(), st.bitrate ? st.bitrate+' kbps' : ''].filter(Boolean).join(' · '), icon:st.favicon||'', style:'onde'}})); } catch(e){}
     } catch (e) { current = null; }
     updBar();
     if (root && document.body.contains(root)) paint();
