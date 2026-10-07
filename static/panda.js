@@ -143,7 +143,13 @@ function applyBrightness(pct){
     document.body.appendChild(ov);}
   ov.style.opacity=Math.min(0.93,(100-pct)/100);
 }
-function applyState(){document.documentElement.setAttribute('data-theme',state.theme||'dark');applyFont();applyFontScale();applyKioskName();updGearBadge();applyBrightness(state.brightness);renderHome();if(typeof startAgendaNotif==='function')startAgendaNotif();}
+function veilleGuard(){/* « Pendant la veille » (Horloge…) ne fait RIEN sans délai
+  d'inactivité : si « Mise en veille écran » est resté sur Jamais, arme 5 min
+  d'office (le mode serait sinon muet). */
+  if((state.veilleMode||'off')!=='off'&&(state.veille||0)===0){state.veille=5;
+    const d=document.getElementById('veille');if(d)d.value='5';resetIdle();return true;}
+  return false;}
+function applyState(){document.documentElement.setAttribute('data-theme',state.theme||'dark');applyFont();applyFontScale();applyKioskName();updGearBadge();applyBrightness(state.brightness);renderHome();if(typeof startAgendaNotif==='function')startAgendaNotif();veilleGuard();}
 function catRank(c){
   const co=state.catOrder||[];
   const i=co.indexOf(c);
@@ -2523,7 +2529,8 @@ function secApparence(){
     const j=await post('/api/system/rotation',{value:rot.value});
     toast(j.ok?'Rotation appliquée':('Impossible — '+(j.reason||'')));});
   const vmod=document.getElementById('veilleMode');
-  if(vmod)vmod.addEventListener('change',()=>{state.veilleMode=vmod.value;save();
+  if(vmod)vmod.addEventListener('change',()=>{state.veilleMode=vmod.value;
+    if(veilleGuard())toast('Veille armée : écran après 5 min (délai modifiable dans « Mise en veille écran »)');save();
     const row=document.getElementById('veilleOffRow');if(row)row.style.display=(vmod.value!=='off')?'':'none';});
   const voff=document.getElementById('veilleOff');
   if(voff)voff.addEventListener('change',()=>{state.veilleOff=parseInt(voff.value)||0;save();});
