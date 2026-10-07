@@ -2070,9 +2070,11 @@ function storeItemNode(a){
   const _logo=a.logo||(by?by.logo:'');
   const _ico=storeLogoHtml(a,_logo,icoName,icoCol);
   const dim=(a.status==='installe'||a.status==='incompatible')?' dimmed':'';
-  // méta sans numéro de version (les versions restent gérées par l'index / les badges MAJ)
-  const metaCard=[kb,a.category].filter(Boolean).join(' · ');
-  const metaRow=[kb,a.category,a.description].filter(Boolean).join(' · ');
+  // méta avec version effective : installée si installé, version d'index sinon
+  const efv=(a.status==='installe'&&(a.installed_version||a.version))||a.version||'';
+  const ver=efv?('v'+efv):'';
+  const metaCard=[ver,kb,a.category].filter(Boolean).join(' · ');
+  const metaRow=[ver,kb,a.category,a.description].filter(Boolean).join(' · ');
   let el,acts;
   if(appViews[appTab]==='cards'){
     el=document.createElement('div');el.className='appcard st-'+a.status+dim+(a.status==='incompatible'?' off':'');
@@ -2094,7 +2096,7 @@ function storeItemNode(a){
 }
 function storeBadge(a){
   if(a.status==='maj')return ' <span class="updbadge">⬆ MISE À JOUR '+a.installed_version+' → '+a.version+'</span>';
-  if(a.status==='installe')return ' <span class="instbadge">✓ à jour</span>';
+  if(a.status==='installe')return ' <span class="instbadge">✓ à jour'+((a.installed_version||a.version)?(' · v'+(a.installed_version||a.version)):'')+'</span>';
   if(a.status==='incompatible')return ' <span class="warnbadge">incompatible</span>';
   if(a.status==='disponible')return ' <span class="newbadge">✨ NOUVEAU</span>';
   return '';
@@ -2120,10 +2122,13 @@ function openAddonDetail(a){
   const icoName=a.icon||(by?by.ic:'📦'), icoCol=a.color||(by?(by.cc||by.color):'#f0b429');
   const _dlogo=a.logo||(by?by.logo:'');
   const _dico=storeLogoHtml(a,_dlogo,icoName,icoCol);
-  const sub=a.status==='installe'?('Installé · source '+(a.source||'store'))
+  const iver=a.installed_version||null, sver=a.version||null;
+  const eff=((a.status==='installe')&&iver)||sver;
+  const verCell=(a.status==='maj'&&iver)?(iver+' → '+sver):(eff||'—');
+  const sub=a.status==='installe'?('Installé · v'+(eff||'—')+' · source '+(a.source||'store'))
     :a.status==='incompatible'?'Non compatible avec ce Panda'
     :a.status==='maj'?('Mise à jour disponible · v'+a.installed_version+' → v'+a.version)
-    :"Disponible à l'installation";
+    :"Disponible à l'installation · v"+(sver||'—');
   const deps=(a.requires&&a.requires.length)?a.requires.map(id=>{
     const b=BYID[id];const nm=b?dnm(b):id;const icn=b?b.ic:'🧩';const icc=b?(b.cc||b.color):'#8a94a0';
     return '<span class="adDep"><span class="di">'+ic(icn,icc)+'</span>'+nm+'</span>';
@@ -2138,6 +2143,7 @@ function openAddonDetail(a){
         '<div class="adCta" id="adCta"></div></div>'+
       (a.description?'<div class="adDesc">'+esc(a.description)+'</div>':'')+
       '<div class="adGrid">'+
+        '<div class="adCell"><div class="k">Version</div><div class="v">'+esc(verCell)+'</div></div>'+
         '<div class="adCell"><div class="k">Taille</div><div class="v">'+kb+'</div></div>'+
         '<div class="adCell"><div class="k">Contrat</div><div class="v">'+esc(a.kiosk_api||'—')+'</div></div>'+
         '<div class="adCell"><div class="k">Source</div><div class="v">'+esc(a.source||'Abeille')+'</div></div>'+
