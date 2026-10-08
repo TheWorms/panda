@@ -2995,7 +2995,7 @@ function buildVeil(){
     /* ---- minuteur en marche : anneau de compte à rebours (style A) ---- */
     v.dataset.np='1';v.dataset.tm='1';    // styles d'angle (nclk/nhint) + styles anneau
     const C=2*Math.PI*46;
-    let h='<div class="nclk" id="tmvClk"></div>';
+    let h='<div class="nclk" id="tmvClk"></div><div class="tmvFlash" id="tmvFlash"></div>';
     h+='<div class="tmvWrap"><div class="tmvIn">';
     h+='<svg class="tmvRing" viewBox="-10 -10 120 120"><defs><linearGradient id="tmvGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0b429"/><stop offset="1" stop-color="#ffd977"/></linearGradient></defs><circle class="tmvTrack" cx="50" cy="50" r="46"/><circle class="tmvArc" id="tmvArc" cx="50" cy="50" r="46" stroke-dasharray="'+C.toFixed(1)+'"/></svg>';
     h+='<div class="tmvDigits" id="tmvDigits"></div>';
@@ -3007,16 +3007,17 @@ function buildVeil(){
       const dt=new Date();
       c.innerHTML=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')})+
         '<small>'+dt.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</small>';
-      const left=Math.max(0,tmLeft()),tot=Math.max(1,tmTotal);
+      const left=Math.max(0,tmLeft()),tot=Math.max(1,tmTotal),over=Math.max(0,Math.round((Date.now()-tmEnd)/1000));
       const dg=document.getElementById('tmvDigits'),nm=document.getElementById('tmvName'),ar=document.getElementById('tmvArc');
-      if(dg)dg.textContent=tmDone?'⏰':tmFmt(left);
-      if(nm)nm.textContent=tmDone?'terminé — touche pour arrêter':((tmName||'Minuteur')+(tmPaused?' · en pause':''));
+      if(dg)dg.textContent=tmDone?('+'+tmFmt(over)):tmFmt(left);
+      if(nm)nm.textContent=tmDone?'Temps écoulé — touche pour arrêter':((tmName||'Minuteur')+(tmPaused?' · en pause':''));
       if(ar)ar.style.strokeDashoffset=tmDone?'0':(C*(1-left/tot)).toFixed(2);
       const w=v.querySelector('.tmvIn');
       if(w){ if(tmDone){w.classList.add('done');w.classList.remove('low','paused');}
         else if(tmPaused){w.classList.add('paused');w.classList.remove('low','done');}
         else if(left<=60){w.classList.add('low');w.classList.remove('done','paused');}
         else w.classList.remove('low','done','paused'); }
+      const fl=document.getElementById('tmvFlash');if(fl)fl.classList.toggle('on',!!tmDone);
       // anti-marquage : léger déplacement du contenu chaque minute
       if(dt.getSeconds()===0&&w)w.style.transform='translate('+(Math.random()*6-3).toFixed(1)+'px,'+(Math.random()*6-3).toFixed(1)+'px)';
     };
@@ -3027,6 +3028,7 @@ function buildVeil(){
     if((state.veilleOff||0)>0){
       v._off=setTimeout(()=>{dalleOff=true;
         const w=v.querySelector('.tmvIn');if(w)w.style.display='none';
+        const fl=document.getElementById('tmvFlash');if(fl)fl.style.display='none';
         if(v._t){clearInterval(v._t);v._t=null;}
         _dalleOn(false);
       },state.veilleOff*60000);

@@ -925,6 +925,9 @@
 #veil[data-tm="1"] .tmvIn.low .tmvDigits{color:#ffb3ab}
 #veil[data-tm="1"] .tmvIn.paused .tmvDigits{opacity:.55}
 #veil[data-tm="1"] .tmvIn.done .tmvArc{stroke:#e8635a;filter:drop-shadow(0 0 12px rgba(232,99,90,.6));animation:tmvPulse 1.6s ease-in-out infinite}
-#veil[data-tm="1"] .tmvIn.done .tmvDigits{color:#ffb3ab;animation:tmvPulse 1.6s ease-in-out infinite}
+#veil[data-tm="1"] .tmvIn.done .tmvDigits{color:#fff}
 @keyframes tmvPulse{0%,100%{opacity:1}50%{opacity:.4}}
+#veil[data-tm="1"] .tmvFlash{position:fixed;inset:0;pointer-events:none;background:#e8635a;opacity:0;z-index:1}
+#veil[data-tm="1"] .tmvFlash.on{animation:tmvFlash 1.1s linear infinite}
+@keyframes tmvFlash{0%,50%{opacity:.32}51%,100%{opacity:0}}
 
