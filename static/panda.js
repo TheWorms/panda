@@ -2997,7 +2997,7 @@ function buildVeil(){
     const C=2*Math.PI*46;
     let h='<div class="nclk" id="tmvClk"></div>';
     h+='<div class="tmvWrap"><div class="tmvIn">';
-    h+='<svg class="tmvRing" viewBox="-10 -10 120 120"><defs><linearGradient id="tmvGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0b429"/><stop offset="1" stop-color="#ffd977"/></linearGradient></defs><circle class="tmvTrack" cx="50" cy="50" r="46"/><circle class="tmvArc" id="tmvArc" cx="50" cy="50" r="46" stroke-dasharray="'+C.toFixed(1)+'"/><g id="tmvHeadRot"><circle class="tmvHead" cx="50" cy="4" r="2.4"/></g></svg>';
+    h+='<svg class="tmvRing" viewBox="-10 -10 120 120"><defs><linearGradient id="tmvGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0b429"/><stop offset="1" stop-color="#ffd977"/></linearGradient></defs><circle class="tmvTrack" cx="50" cy="50" r="46"/><circle class="tmvArc" id="tmvArc" cx="50" cy="50" r="46" stroke-dasharray="'+C.toFixed(1)+'"/></svg>';
     h+='<div class="tmvDigits" id="tmvDigits"></div>';
     h+='<div class="tmvName" id="tmvName"></div>';
     h+='</div></div>';
@@ -3012,8 +3012,6 @@ function buildVeil(){
       if(dg)dg.textContent=tmDone?'⏰':tmFmt(left);
       if(nm)nm.textContent=tmDone?'terminé — touche pour arrêter':((tmName||'Minuteur')+(tmPaused?' · en pause':''));
       if(ar)ar.style.strokeDashoffset=tmDone?'0':(C*(1-left/tot)).toFixed(2);
-      const hr=document.getElementById('tmvHeadRot');
-      if(hr)hr.style.transform='rotate('+(360*(left/tot)).toFixed(2)+'deg)';
       const w=v.querySelector('.tmvIn');
       if(w){ if(tmDone){w.classList.add('done');w.classList.remove('low','paused');}
         else if(tmPaused){w.classList.add('paused');w.classList.remove('low','done');}
