@@ -919,8 +919,8 @@
 #veil[data-tm="1"] .tmvRing{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
 #veil[data-tm="1"] .tmvTrack{fill:none;stroke:rgba(255,255,255,.07);stroke-width:10}
 #veil[data-tm="1"] .tmvArc{fill:none;stroke:url(#tmvGrad);stroke-width:10;stroke-linecap:round;filter:drop-shadow(0 0 8px rgba(240,180,41,.45));transition:stroke-dashoffset .9s linear,stroke .4s}
-#veil[data-tm="1"] .tmvDigits{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-family:var(--mono);font-weight:300;font-size:18.5vmin;line-height:1;color:#f5f2eb;text-shadow:0 0 36px rgba(255,255,255,.14);z-index:2}
-#veil[data-tm="1"] .tmvName{position:absolute;left:-60%;right:-60%;top:71%;text-align:center;font-family:var(--mono);font-size:5.4vmin;color:#8b93a1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+#veil[data-tm="1"] .tmvDigits{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-family:var(--mono);font-weight:300;font-size:13.5vmin;line-height:1;color:#f5f2eb;text-shadow:0 0 26px rgba(255,255,255,.14);z-index:2}
+#veil[data-tm="1"] .tmvName{position:absolute;left:25%;right:25%;top:71%;text-align:center;font-family:var(--mono);font-size:3.5vmin;color:#8b93a1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
 #veil[data-tm="1"] .tmvIn.low .tmvArc{stroke:#e8635a;filter:drop-shadow(0 0 9px rgba(232,99,90,.55))}
 #veil[data-tm="1"] .tmvIn.low .tmvDigits{color:#ffb3ab}
 #veil[data-tm="1"] .tmvIn.paused .tmvDigits{opacity:.55}

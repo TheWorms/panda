@@ -3010,7 +3010,7 @@ function buildVeil(){
       const left=Math.max(0,tmLeft()),tot=Math.max(1,tmTotal),over=Math.max(0,Math.round((Date.now()-tmEnd)/1000));
       const dg=document.getElementById('tmvDigits'),nm=document.getElementById('tmvName'),ar=document.getElementById('tmvArc');
       if(dg)dg.textContent=tmDone?('+'+tmFmt(over)):tmFmt(left);
-      if(nm)nm.textContent=tmDone?'Temps écoulé — touche pour arrêter':((tmName||'Minuteur')+(tmPaused?' · en pause':''));
+      if(nm)nm.textContent=tmDone?'Temps écoulé':((tmName||'Minuteur')+(tmPaused?' · en pause':''));
       if(ar)ar.style.strokeDashoffset=tmDone?'0':(C*(1-left/tot)).toFixed(2);
       const w=v.querySelector('.tmvIn');
       if(w){ if(tmDone){w.classList.add('done');w.classList.remove('low','paused');}
@@ -3018,6 +3018,7 @@ function buildVeil(){
         else if(left<=60){w.classList.add('low');w.classList.remove('done','paused');}
         else w.classList.remove('low','done','paused'); }
       const fl=document.getElementById('tmvFlash');if(fl)fl.classList.toggle('on',!!tmDone);
+      const ht=v.querySelector('.nhint');if(ht)ht.textContent=tmDone?'touche pour arrêter':'un toucher réveille';
       // anti-marquage : léger déplacement du contenu chaque minute
       if(dt.getSeconds()===0&&w)w.style.transform='translate('+(Math.random()*6-3).toFixed(1)+'px,'+(Math.random()*6-3).toFixed(1)+'px)';
     };
