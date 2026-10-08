@@ -75,7 +75,7 @@ async function loadRegistry(){
   return false;
 }
 
-let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',updChannel:'stable',updBetaUrl:'',updBetaToken:'',veilleMode:'off',veilleOff:0,npStyle:'plateau',npWhen:'idle',npStyleMusique:'',npStyleRadio:'',font:'system'};
+let state={installed:[],hidden:[],order:[],railOn:false,railMode:'both',lockEnabled:true,autolock:0,theme:"dark",ntp:true,names:{},catOrder:[],vkb:true,agCals:{},radioFav:[],timers:[],transFav:[],delMode:false,timerSound:'',timerDisplay:'text',appCat:{},catCustom:{},catNames:{},fontScale:100,browserPw:false,iconStyle:'tabler',wifiInd:true,btInd:true,clockFmt:'24h',clockSec:false,dateFmt:'long',catHidden:[],storeCheck:'open',storeUrl:'',storeToken:'',storeMode:'officiel',storePubkey:'',updChannel:'stable',updBetaUrl:'',updBetaToken:'',veilleMode:'off',veilleOff:0,npStyle:'plateau',npWhen:'idle',npStyleMusique:'',npStyleRadio:'',npStyleMinuteur:'',font:'system'};
 function dnm(a){return (state.names&&state.names[a.id])||a.nm;}
 /* Icônes Tabler : mapping emoji → nom d'icône, + helper de rendu.
    Fallback : un emoji non mappé est affiché tel quel. ic() renvoie du HTML
@@ -106,7 +106,7 @@ function sanitize(){
 let pushT;
 function save(){
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,npStyle:state.npStyle,npWhen:state.npWhen,npStyleMusique:state.npStyleMusique,npStyleRadio:state.npStyleRadio,font:state.font})}).catch(()=>{});},250);
+  pushT=setTimeout(()=>{fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({connBar:state.connBar,installed:state.installed,hidden:state.hidden,order:state.order,railOn:state.railOn,railMode:state.railMode,theme:state.theme,ntp:state.ntp,autolock:state.autolock,lockEnabled:state.lockEnabled,names:state.names,catOrder:state.catOrder,appCat:state.appCat,catCustom:state.catCustom,catNames:state.catNames,catColors:state.catColors,catIcons:state.catIcons,vkb:state.vkb,agCals:state.agCals,radioFav:state.radioFav,timers:state.timers,transFav:state.transFav,delMode:state.delMode,timerDisplay:state.timerDisplay,fontScale:state.fontScale,volBar:state.volBar,btAutoReconnect:state.btAutoReconnect,btKeepAlive:state.btKeepAlive,lang:state.lang,browserPw:state.browserPw,iconStyle:state.iconStyle,wifiInd:state.wifiInd,btInd:state.btInd,clockFmt:state.clockFmt,clockSec:state.clockSec,dateFmt:state.dateFmt,catHidden:state.catHidden,storeCheck:state.storeCheck,storeUrl:state.storeUrl,storeToken:state.storeToken,storeMode:state.storeMode,storePubkey:state.storePubkey,updChannel:state.updChannel,updBetaUrl:state.updBetaUrl,updBetaToken:state.updBetaToken,veilleMode:state.veilleMode,veilleOff:state.veilleOff,npStyle:state.npStyle,npWhen:state.npWhen,npStyleMusique:state.npStyleMusique,npStyleRadio:state.npStyleRadio,npStyleMinuteur:state.npStyleMinuteur,font:state.font})}).catch(()=>{});},250);
 }
 async function pullConfig(){await loadRegistry();try{const r=await fetch('/api/config');if(r.ok){const j=await r.json();/* Secrets (storeToken, updBetaToken, browserPw) masqués aux non-admin : le serveur ne renvoie que has_<clé>=true. On ne les recopie pas dans state pour ne pas écraser la valeur connue (une sauvegarde ultérieure d'un admin renverrait un jeton vide). */for(const k of ['storeToken','updBetaToken','browserPw']){if(j['has_'+k]&&!j[k])delete j[k];}Object.assign(state,j);sanitize();}}catch(e){}}
 /* migrateNew supprimé (0.17.2) : réinstallait ses 10 addons en dur à chaque
@@ -416,7 +416,7 @@ async function loadProxmoxView(a){
   const rb=document.getElementById('pveRefresh');if(rb)rb.addEventListener('click',()=>loadProxmoxView(a));
 }
 /* ---------- MINUTEUR ---------- */
-let tmTimer=null,tmEnd=0,tmName='',tmDone=false,tmBeep=null,tmSound='',tmPaused=false,tmRemain=0;
+let tmTimer=null,tmEnd=0,tmName='',tmDone=false,tmBeep=null,tmSound='',tmPaused=false,tmRemain=0,tmTotal=0;
 function tmFmt(sec){const m=Math.floor(Math.abs(sec)/60),s2=Math.abs(sec)%60;
   return (sec<0?'-':'')+String(m).padStart(2,'0')+':'+String(s2).padStart(2,'0');}
 let tmSoundEl=null,tmPreview=null,tmPreviewName='',tmColor='',tmBg='';
@@ -474,7 +474,7 @@ function tmUpdateBar(){
   bar.onclick=()=>openAddon('minuteur');
 }
 function tmStart(name,secs,a,preset){
-  tmName=name;tmEnd=Date.now()+secs*1000;tmDone=false;tmPaused=false;tmRemain=0;
+  tmName=name;tmEnd=Date.now()+secs*1000;tmDone=false;tmPaused=false;tmRemain=0;tmTotal=secs;
   tmSound=(preset&&preset.sound)||'';
   tmColor=(preset&&preset.color)||'';
   tmBg=(preset&&preset.bg)||'';
@@ -506,6 +506,7 @@ function tmAdd(min,a){
   tmSilence();
   tmDone=false;
   const base=tmPaused?tmRemain:Math.max(0,Math.round((tmEnd-Date.now())/1000));
+  tmTotal+=min*60;
   if(tmPaused)tmRemain=base+min*60;
   else tmEnd=Date.now()+(base+min*60)*1000;
   tmUpdateBar();if(a)renderTimer(a);
@@ -514,7 +515,7 @@ function tmAdd(min,a){
 function tmStop(){
   if(tmTimer)clearInterval(tmTimer);tmTimer=null;
   tmSilence();
-  tmDone=false;tmPaused=false;tmRemain=0;tmName='';
+  tmDone=false;tmPaused=false;tmRemain=0;tmTotal=0;tmName='';
   tmUpdateBar();
 }
 async function loadTimerView(a){renderTimer(a);}
@@ -2481,6 +2482,7 @@ function secApparence(){
     '<div class="setrow" id="veilleOffRow" style="'+(((state.veilleMode||'off')!=='off')?'':'display:none')+'"><div class="lft"><div class="t">Extinction totale après</div><div class="d">En mode horloge, éteint complètement la dalle après ce délai supplémentaire (économie maximale). Un toucher rallume.</div></div><select class="inp" id="veilleOff" style="max-width:160px">'+'<option value="0"'+((state.veilleOff||0)===0?' selected':'')+'>Jamais</option>'+'<option value="15"'+(state.veilleOff===15?' selected':'')+'>+ 15 min</option>'+'<option value="30"'+(state.veilleOff===30?' selected':'')+'>+ 30 min</option>'+'<option value="60"'+(state.veilleOff===60?' selected':'')+'>+ 1 h</option>'+'<option value="120"'+(state.veilleOff===120?' selected':'')+'>+ 2 h</option>'+'<option value="180"'+(state.veilleOff===180?' selected':'')+'>+ 3 h</option>'+'<option value="360"'+(state.veilleOff===360?' selected':'')+'>+ 6 h</option>'+'<option value="720"'+(state.veilleOff===720?' selected':'')+'>+ 12 h</option>'+'</select></div>'+
     (((state.installed||[]).includes('musique')&&!(state.hidden||[]).includes('musique'))?'<div class="setrow"><div class="lft"><div class="t">Veille — Musique</div><div class="d">Visuel de l\'écran en écoute quand la Musique joue — « Automatique » suit le visuel imposé par l\'addon (Vinyle)</div></div><select class="inp" id="npStyleMusique" style="max-width:170px">'+npStyleOpts(state.npStyleMusique)+'</select></div>':'')+
     (((state.installed||[]).includes('radio')&&!(state.hidden||[]).includes('radio'))?'<div class="setrow"><div class="lft"><div class="t">Veille — Radio</div><div class="d">Visuel de l\'écran en écoute quand la Radio joue — « Automatique » suit le visuel imposé par l\'addon (Onde)</div></div><select class="inp" id="npStyleRadio" style="max-width:170px">'+npStyleOpts(state.npStyleRadio)+'</select></div>':'')+
+    (!(state.hidden||[]).includes('minuteur')?'<div class="setrow"><div class="lft"><div class="t">Veille — Minuteur</div><div class="d">Anneau de compte à rebours affiché en veille pendant un minuteur — « Aucune » garde l\'écran allumé (comportement d\'origine)</div></div><select class="inp" id="npStyleMinuteur" style="max-width:170px">'+'<option value=""'+((state.npStyleMinuteur||'')===''?' selected':'')+'>Automatique (anneau)</option>'+'<option value="none"'+((state.npStyleMinuteur||'')==='none'?' selected':'')+'>Aucune (écran allumé)</option>'+'</select></div>':'')+
     '<div class="setrow"><div class="lft"><div class="t">Quand la lecture démarre</div><div class="d">Bascule sur l\'écran en écoute dès le lancement d\'un son (Radio ou Musique), ou seulement au moment normal de la veille</div></div><select class="inp" id="npWhen" style="max-width:170px">'+'<option value="idle"'+((state.npWhen||'idle')==='idle'?' selected':'')+'>Au délai de veille</option>'+'<option value="now"'+((state.npWhen||'')==='now'?' selected':'')+'>Dès le début de la lecture</option>'+'</select></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Taille du texte</div><div class="d">Agrandir ou réduire l\'affichage</div></div><div class="seg" id="segFont"><button data-fs="92">A−</button><button data-fs="100">A</button><button data-fs="108">A+</button><button data-fs="116">A++</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Rotation</div><div class="d">Orientation de l\'affichage</div></div><select class="inp" id="rotSel" style="max-width:150px"><option value="normal">Normale</option><option value="left">90° gauche</option><option value="right">90° droite</option><option value="inverted">180°</option></select></div>'+
@@ -2548,6 +2550,8 @@ function secApparence(){
   if(npms)npms.addEventListener('change',()=>{state.npStyleMusique=npms.value;save();});
   const nprs=document.getElementById('npStyleRadio');
   if(nprs)nprs.addEventListener('change',()=>{state.npStyleRadio=nprs.value;save();});
+  const tmsel=document.getElementById('npStyleMinuteur');
+  if(tmsel)tmsel.addEventListener('change',()=>{state.npStyleMinuteur=tmsel.value;save();});
   const vsel=document.getElementById('veille');
   if(vsel)vsel.addEventListener('change',async()=>{
     const mins=parseInt(vsel.value)||0;
@@ -2965,11 +2969,11 @@ function npRefresh(){
     if(isNp!==wantNp)buildVeil();},300);}
 function screenOff(){
   if(screenIsOff)return;
-  /* Minuteur en marche : pas de mise en veille — l'écran reste allumé
-     pour suivre le compte à rebours. resetIdle() repousse simplement
-     la veille d'un cycle ; elle reviendra quand le minuteur sera
-     arrêté ou terminé (sonné). */
-  if(tmTimer&&!tmDone){resetIdle();return;}
+  /* Minuteur en marche : la veille affiche l'anneau de compte à rebours,
+     sauf si le réglage « Veille — Minuteur » est sur Aucune ou si le
+     minuteur est masqué (non lançable) — resetIdle() repousse alors la
+     veille d'un cycle, comme avant. */
+  if(tmTimer&&!tmDone&&(((state.npStyleMinuteur||'')==='none')||(state.hidden||[]).includes('minuteur'))){resetIdle();return;}
   screenIsOff=true;
   buildVeil();
 }
@@ -2979,8 +2983,49 @@ function buildVeil(){
   const v=document.createElement('div');v.id='veil';
   // le voile capte le premier toucher (rallumage) sans cliquer l'interface dessous
   v.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();screenOn();},{once:true,capture:true});
+  const tmv=!!tmTimer&&((state.npStyleMinuteur||'')!=='none')&&!(state.hidden||[]).includes('minuteur');
   const np=!!npNow&&npEffStyle()!=='none';
-  if(np){
+  if(tmv){
+    /* ---- minuteur en marche : anneau de compte à rebours (style A) ---- */
+    v.dataset.np='1';v.dataset.tm='1';    // styles d'angle (nclk/nhint) + styles anneau
+    const C=2*Math.PI*46;
+    let h='<div class="nclk" id="tmvClk"></div>';
+    h+='<div class="tmvWrap"><div class="tmvIn">';
+    h+='<svg class="tmvRing" viewBox="0 0 100 100"><circle class="tmvTrack" cx="50" cy="50" r="46"/><circle class="tmvArc" id="tmvArc" cx="50" cy="50" r="46" stroke-dasharray="'+C.toFixed(1)+'"/></svg>';
+    h+='<div class="tmvDigits" id="tmvDigits"></div>';
+    h+='<div class="tmvName" id="tmvName"></div>';
+    h+='</div></div>';
+    h+='<div class="nhint">un toucher réveille</div>';
+    v.innerHTML=h;
+    const upd=()=>{const c=document.getElementById('tmvClk');if(!c)return;
+      const dt=new Date();
+      c.innerHTML=dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',hour12:(state.clockFmt==='12h')})+
+        '<small>'+dt.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</small>';
+      const left=Math.max(0,tmLeft()),tot=Math.max(1,tmTotal);
+      const dg=document.getElementById('tmvDigits'),nm=document.getElementById('tmvName'),ar=document.getElementById('tmvArc');
+      if(dg)dg.textContent=tmDone?'⏰':tmFmt(left);
+      if(nm)nm.textContent=tmDone?'terminé — touche pour arrêter':esc((tmName||'Minuteur')+(tmPaused?' · en pause':''));
+      if(ar)ar.style.strokeDashoffset=tmDone?'0':(C*(1-left/tot)).toFixed(2);
+      const w=v.querySelector('.tmvIn');
+      if(w){ if(tmDone){w.classList.add('done');w.classList.remove('low','paused');}
+        else if(tmPaused){w.classList.add('paused');w.classList.remove('low','done');}
+        else if(left<=60){w.classList.add('low');w.classList.remove('done','paused');}
+        else w.classList.remove('low','done','paused'); }
+      // anti-marquage : léger déplacement du contenu chaque minute
+      if(dt.getSeconds()===0&&w)w.style.transform='translate('+(Math.random()*6-3).toFixed(1)+'px,'+(Math.random()*6-3).toFixed(1)+'px)';
+    };
+    upd();v._t=setInterval(upd,1000);
+    if(dalleOff){dalleOff=false;_dalleOn(true);}    // la dalle se rallume pour suivre le minuteur
+    // 2e étape : après veilleOff minutes, extinction TOTALE de la dalle
+    // (le voile reste pour capter le toucher ; l'anneau est masqué).
+    if((state.veilleOff||0)>0){
+      v._off=setTimeout(()=>{dalleOff=true;
+        const w=v.querySelector('.tmvIn');if(w)w.style.display='none';
+        if(v._t){clearInterval(v._t);v._t=null;}
+        _dalleOn(false);
+      },state.veilleOff*60000);
+    }
+  }else if(np){
     /* ---- écran « en écoute » : visuel imposé par la source, sinon réglages ---- */
     v._np=true;v.dataset.np='1';
     const d=npNow,st=npEffStyle();

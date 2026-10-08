@@ -910,3 +910,21 @@
 #veil[data-np="1"] .nwave{position:absolute;left:0;right:0;bottom:0;height:96px;display:flex;align-items:center;justify-content:center;gap:5px}
 #veil[data-np="1"] .nwave i{width:9px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,rgba(45,212,191,.6),rgba(45,212,191,.06));animation:npEq 1.15s ease-in-out infinite alternate}
 
+/* ==== veille « Minuteur » : anneau de compte à rebours (réglage Veille — Minuteur) ====
+   Construit par buildVeil() quand un minuteur tourne au déclenchement de la veille.
+   Décompte AU CENTRE de l'anneau, nom du minuteur dessous, rouge la dernière minute,
+   ⏰ pulsant tant que la sonnerie sonne. */
+#veil[data-tm="1"] .tmvWrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:38vmin;height:38vmin}
+#veil[data-tm="1"] .tmvIn{position:absolute;inset:0}
+#veil[data-tm="1"] .tmvRing{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+#veil[data-tm="1"] .tmvTrack{fill:none;stroke:rgba(255,255,255,.07);stroke-width:10}
+#veil[data-tm="1"] .tmvArc{fill:none;stroke:#f0b429;stroke-width:10;stroke-linecap:round;filter:drop-shadow(0 0 8px rgba(240,180,41,.45));transition:stroke-dashoffset .9s linear,stroke .4s}
+#veil[data-tm="1"] .tmvDigits{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-family:var(--mono);font-weight:300;font-size:9vmin;line-height:1;color:#f5f2eb;text-shadow:0 0 18px rgba(255,255,255,.14);z-index:2}
+#veil[data-tm="1"] .tmvName{position:absolute;left:-60%;right:-60%;top:71%;text-align:center;font-family:var(--mono);font-size:2.6vmin;color:#8b93a1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+#veil[data-tm="1"] .tmvIn.low .tmvArc{stroke:#e8635a;filter:drop-shadow(0 0 9px rgba(232,99,90,.55))}
+#veil[data-tm="1"] .tmvIn.low .tmvDigits{color:#ffb3ab}
+#veil[data-tm="1"] .tmvIn.paused .tmvDigits{opacity:.55}
+#veil[data-tm="1"] .tmvIn.done .tmvArc{stroke:#e8635a;filter:drop-shadow(0 0 12px rgba(232,99,90,.6));animation:tmvPulse 1.6s ease-in-out infinite}
+#veil[data-tm="1"] .tmvIn.done .tmvDigits{color:#ffb3ab;animation:tmvPulse 1.6s ease-in-out infinite}
+@keyframes tmvPulse{0%,100%{opacity:1}50%{opacity:.4}}
+
