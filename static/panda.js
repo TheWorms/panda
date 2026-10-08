@@ -488,6 +488,9 @@ function tmStart(name,secs,a,preset){
     if(el)renderTimer(a);
   },1000);
   tmUpdateBar();renderTimer(a);
+  // veille minuteur dès le lancement du minuteur (miroir « Dès le début
+  // de la lecture »), sauf réglage « Aucune » ou minuteur masqué
+  if(!screenIsOff&&((state.npStyleMinuteur||'')!=='none')&&!(state.hidden||[]).includes('minuteur'))screenOff();
 }
 function tmLeft(){return tmPaused?tmRemain:Math.round((tmEnd-Date.now())/1000);}
 function tmSilence(){
@@ -2482,8 +2485,8 @@ function secApparence(){
     '<div class="setrow" id="veilleOffRow" style="'+(((state.veilleMode||'off')!=='off')?'':'display:none')+'"><div class="lft"><div class="t">Extinction totale après</div><div class="d">En mode horloge, éteint complètement la dalle après ce délai supplémentaire (économie maximale). Un toucher rallume.</div></div><select class="inp" id="veilleOff" style="max-width:160px">'+'<option value="0"'+((state.veilleOff||0)===0?' selected':'')+'>Jamais</option>'+'<option value="15"'+(state.veilleOff===15?' selected':'')+'>+ 15 min</option>'+'<option value="30"'+(state.veilleOff===30?' selected':'')+'>+ 30 min</option>'+'<option value="60"'+(state.veilleOff===60?' selected':'')+'>+ 1 h</option>'+'<option value="120"'+(state.veilleOff===120?' selected':'')+'>+ 2 h</option>'+'<option value="180"'+(state.veilleOff===180?' selected':'')+'>+ 3 h</option>'+'<option value="360"'+(state.veilleOff===360?' selected':'')+'>+ 6 h</option>'+'<option value="720"'+(state.veilleOff===720?' selected':'')+'>+ 12 h</option>'+'</select></div>'+
     (((state.installed||[]).includes('musique')&&!(state.hidden||[]).includes('musique'))?'<div class="setrow"><div class="lft"><div class="t">Veille — Musique</div><div class="d">Visuel de l\'écran en écoute quand la Musique joue — « Automatique » suit le visuel imposé par l\'addon (Vinyle)</div></div><select class="inp" id="npStyleMusique" style="max-width:170px">'+npStyleOpts(state.npStyleMusique)+'</select></div>':'')+
     (((state.installed||[]).includes('radio')&&!(state.hidden||[]).includes('radio'))?'<div class="setrow"><div class="lft"><div class="t">Veille — Radio</div><div class="d">Visuel de l\'écran en écoute quand la Radio joue — « Automatique » suit le visuel imposé par l\'addon (Onde)</div></div><select class="inp" id="npStyleRadio" style="max-width:170px">'+npStyleOpts(state.npStyleRadio)+'</select></div>':'')+
-    (!(state.hidden||[]).includes('minuteur')?'<div class="setrow"><div class="lft"><div class="t">Veille — Minuteur</div><div class="d">Anneau de compte à rebours affiché en veille pendant un minuteur — « Aucune » garde l\'écran allumé (comportement d\'origine)</div></div><select class="inp" id="npStyleMinuteur" style="max-width:170px">'+'<option value=""'+((state.npStyleMinuteur||'')===''?' selected':'')+'>Automatique (anneau)</option>'+'<option value="none"'+((state.npStyleMinuteur||'')==='none'?' selected':'')+'>Aucune (écran allumé)</option>'+'</select></div>':'')+
     '<div class="setrow"><div class="lft"><div class="t">Quand la lecture démarre</div><div class="d">Bascule sur l\'écran en écoute dès le lancement d\'un son (Radio ou Musique), ou seulement au moment normal de la veille</div></div><select class="inp" id="npWhen" style="max-width:170px">'+'<option value="idle"'+((state.npWhen||'idle')==='idle'?' selected':'')+'>Au délai de veille</option>'+'<option value="now"'+((state.npWhen||'')==='now'?' selected':'')+'>Dès le début de la lecture</option>'+'</select></div>'+
+    (!(state.hidden||[]).includes('minuteur')?'<div class="setrow"><div class="lft"><div class="t">Veille — Minuteur</div><div class="d">Anneau de compte à rebours affiché dès le lancement du minuteur — « Aucune » garde l\'écran allumé (comportement d\'origine)</div></div><select class="inp" id="npStyleMinuteur" style="max-width:170px">'+'<option value=""'+((state.npStyleMinuteur||'')===''?' selected':'')+'>Automatique (anneau)</option>'+'<option value="none"'+((state.npStyleMinuteur||'')==='none'?' selected':'')+'>Aucune (écran allumé)</option>'+'</select></div>':'')+
     '<div class="setrow"><div class="lft"><div class="t">Taille du texte</div><div class="d">Agrandir ou réduire l\'affichage</div></div><div class="seg" id="segFont"><button data-fs="92">A−</button><button data-fs="100">A</button><button data-fs="108">A+</button><button data-fs="116">A++</button></div></div>'+
     '<div class="setrow"><div class="lft"><div class="t">Rotation</div><div class="d">Orientation de l\'affichage</div></div><select class="inp" id="rotSel" style="max-width:150px"><option value="normal">Normale</option><option value="left">90° gauche</option><option value="right">90° droite</option><option value="inverted">180°</option></select></div>'+
     '<div class="wsec" style="padding-left:0;margin-top:16px">Accueil</div>'+
@@ -3004,7 +3007,7 @@ function buildVeil(){
       const left=Math.max(0,tmLeft()),tot=Math.max(1,tmTotal);
       const dg=document.getElementById('tmvDigits'),nm=document.getElementById('tmvName'),ar=document.getElementById('tmvArc');
       if(dg)dg.textContent=tmDone?'⏰':tmFmt(left);
-      if(nm)nm.textContent=tmDone?'terminé — touche pour arrêter':esc((tmName||'Minuteur')+(tmPaused?' · en pause':''));
+      if(nm)nm.textContent=tmDone?'terminé — touche pour arrêter':((tmName||'Minuteur')+(tmPaused?' · en pause':''));
       if(ar)ar.style.strokeDashoffset=tmDone?'0':(C*(1-left/tot)).toFixed(2);
       const w=v.querySelector('.tmvIn');
       if(w){ if(tmDone){w.classList.add('done');w.classList.remove('low','paused');}
