@@ -117,13 +117,26 @@ def _weather(sdk, cfg):
               "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
               "precipitation_probability_max,uv_index_max,wind_speed_10m_max,sunrise,sunset"
               "&forecast_days=7&timezone=auto")
-        r = sdk.requests.get(fu, timeout=6)
-        r.raise_for_status()
-        f = r.json()
-    except sdk.requests.exceptions.RequestException as e:
-        return {"ok": False, "reason": type(e).__name__}
-    except ValueError:
-        return {"ok": False, "reason": "réponse invalide"}
+        import time as _time
+        f, last = None, None
+        for attempt in range(3):      # Open-Meteo renvoie des 503 / lenteurs ponctuels
+            try:
+                r = sdk.requests.get(fu, timeout=8)
+                r.raise_for_status()
+                f = r.json()
+                break
+            except (sdk.requests.exceptions.RequestException, ValueError) as e:
+                last = e
+                if attempt < 2:
+                    _time.sleep(0.6 * (attempt + 1))
+        if f is None:
+            raise last
+    except (sdk.requests.exceptions.RequestException, ValueError) as e:
+        old = sdk.cache_get(ck + ":last", 6 * 3600)   # repli : dernières données connues
+        if old is not None:
+            return dict(old, stale=True)
+        return {"ok": False,
+                "reason": "réponse invalide" if isinstance(e, ValueError) else type(e).__name__}
 
     cur = f.get("current", {})
     hourly = f.get("hourly", {})
@@ -191,6 +204,7 @@ def _weather(sdk, cfg):
                        "is_day": cur.get("is_day"),
                        "uv": (days[0]["uv"] if days else None)},
            "rain_in": rain_in, "hours": hours, "days": days, "air": air}
+    sdk.cache_set(ck + ":last", res)
     return sdk.cache_set(ck, res)
 
 
