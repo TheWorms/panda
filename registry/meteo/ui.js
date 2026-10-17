@@ -82,7 +82,7 @@ window.PandaAddons.meteo = (function () {
     const uvLvl=uv=>uv==null?'':(uv<3?'faible':uv<6?'modéré':uv<8?'élevé':uv<11?'très élevé':'extrême');
     const rain=d.rain_in===0?'en cours':(d.rain_in!=null?'dans '+d.rain_in+' h':'aucune');
     let h='';
-    if(vig&&vig.ok){
+    if(vig&&vig.ok&&vig.level>=2){   // vert = rien à signaler : bloc masqué
       const vc={1:'var(--green)',2:'var(--warn)',3:'#e8853a',4:'var(--bad)'}[vig.level]||'var(--dim)';
       const active=vig.level>=2;
       h+='<div class="vigbar'+(active?' vigblink':'')+'" style="--vc:'+vc+'">🚨 <b>'+(vig.dept_name||('dépt '+vig.dept))+'</b> · Vigilance '+vig.color+' — <span style="color:var(--dim)">'+vig.label+'</span></div>';
