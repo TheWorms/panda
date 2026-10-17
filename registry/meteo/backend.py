@@ -104,7 +104,7 @@ def _weather(sdk, cfg):
     lat = _f(cfg.get("lat"), 48.6493)   # défaut : Saint-Malo (côtier), modifiable
     lon = _f(cfg.get("lon"), -2.0257)
     ville = cfg.get("ville") or "Ma position"
-    ck = f"wx:{lat},{lon}"
+    ck = f"wx:{round(lat, 2)},{round(lon, 2)}"
     c = sdk.cache_get(ck, 300)
     if c is not None:
         return c
@@ -116,12 +116,16 @@ def _weather(sdk, cfg):
               "&hourly=temperature_2m,precipitation,precipitation_probability,weather_code"
               "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
               "precipitation_probability_max,uv_index_max,wind_speed_10m_max,sunrise,sunset"
-              "&forecast_days=7&timezone=auto")
+              "&forecast_days=7&forecast_hours=24&timezone=auto")
         import time as _time
         f, last = None, None
+        t_end = _time.monotonic() + 30          # budget total : l'écran n'attend pas plus
         for attempt in range(3):      # Open-Meteo renvoie des 503 / lenteurs ponctuels
+            left = t_end - _time.monotonic()
+            if left < 3:
+                break
             try:
-                r = sdk.requests.get(fu, timeout=8)
+                r = sdk.requests.get(fu, timeout=(4, min(15, left)))
                 r.raise_for_status()
                 f = r.json()
                 break
@@ -130,9 +134,9 @@ def _weather(sdk, cfg):
                 if attempt < 2:
                     _time.sleep(0.6 * (attempt + 1))
         if f is None:
-            raise last
+            raise last or sdk.requests.exceptions.Timeout("budget épuisé")
     except (sdk.requests.exceptions.RequestException, ValueError) as e:
-        old = sdk.cache_get(ck + ":last", 6 * 3600)   # repli : dernières données connues
+        old = sdk.cache_get(ck + ":last", 12 * 3600)   # repli : dernières données connues
         if old is not None:
             return dict(old, stale=True)
         return {"ok": False,
@@ -150,7 +154,7 @@ def _weather(sdk, cfg):
     started = False
     idx = 0
     for i, t in enumerate(times):
-        if t == now_iso:
+        if now_iso and t[:13] == now_iso[:13]:   # current est au 1/4 d'heure
             started, idx = True, i
             break
     if started:
@@ -216,31 +220,48 @@ def _vigilance(sdk, cfg):
     c = sdk.cache_get(ck, 600)
     if c is not None:
         return c
+    def _fail(reason):
+        old = sdk.cache_get(ck + ":last", 12 * 3600)     # dernière vigilance connue
+        return dict(old, stale=True) if old is not None else {"ok": False, "reason": reason}
+
+    # v3 = route actuelle (meteofrance-api) ; l'ancienne répond 502 depuis oct. 2026
+    routes = (("v3/warning/currentphenomenons", {"domain": dept, "depth": 0}),
+              ("warning/currentphenomenons", {"domain": dept, "warning_type": "vigilance"}))
+    j, reason = None, "indisponible"
+    for path, params in routes:
+        try:
+            r = sdk.requests.get("https://webservice.meteofrance.com/" + path,
+                                 params=dict(params, token=MF_TOKEN),
+                                 headers={"User-Agent": "panda"}, timeout=(4, 8))
+            if r.status_code != 200:
+                reason = f"HTTP {r.status_code}"
+                continue
+            j = r.json()
+            break
+        except sdk.requests.exceptions.RequestException as e:
+            reason = type(e).__name__
+        except ValueError:
+            reason = "réponse invalide"
+    if not isinstance(j, dict):
+        return _fail(reason)
     try:
-        r = sdk.requests.get(
-            "https://webservice.meteofrance.com/warning/currentphenomenons",
-            params={"domain": dept, "warning_type": "vigilance",
-                    "token": MF_TOKEN},
-            headers={"User-Agent": "panda"},
-            timeout=6)
-        if r.status_code != 200:
-            return {"ok": False, "reason": f"HTTP {r.status_code}"}
-        j = r.json()
         lvl = int(j.get("domain_max_color") or 0)
-    except sdk.requests.exceptions.RequestException as e:
-        return {"ok": False, "reason": type(e).__name__}
-    except (ValueError, KeyError, TypeError):
-        return {"ok": False, "reason": "réponse invalide"}
+        if lvl < 1:
+            lvl = max(int(x.get("phenomenon_max_color_id") or 0)
+                      for x in (j.get("phenomenons_max_colors") or [{}]))
+    except (ValueError, TypeError, AttributeError):
+        return _fail("réponse invalide")
     if lvl < 1:
-        return {"ok": False, "reason": "niveau inconnu"}
+        return _fail("niveau inconnu")
     labels = {1: ("Vert", "Pas de vigilance particulière"),
               2: ("Jaune", "Soyez attentif"),
               3: ("Orange", "Soyez très vigilant"),
               4: ("Rouge", "Vigilance absolue")}
     color, txt = labels.get(lvl, (str(lvl), ""))
-    return sdk.cache_set(ck, {"ok": True, "level": lvl, "color": color,
-                              "label": txt, "dept": dept,
-                              "dept_name": _DEPTS.get(dept, "dépt " + dept)})
+    res = {"ok": True, "level": lvl, "color": color, "label": txt, "dept": dept,
+           "dept_name": _DEPTS.get(dept, "dépt " + dept)}
+    sdk.cache_set(ck + ":last", res)
+    return sdk.cache_set(ck, res)
 
 
 def register(sdk):
